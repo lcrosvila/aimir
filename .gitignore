@@ -6,6 +6,7 @@ mess/
 suno/
 suno_likes/
 udio/
+suno_update/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
