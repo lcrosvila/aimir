@@ -6,6 +6,7 @@ import matplotlib.patches as patches
 from matplotlib.colors import LinearSegmentedColormap, ListedColormap
 from IPython.display import Audio, display
 
+#--------------------------------------------------------------------------------
 def plotWaveform(y, sr, chords, bars, bound_frames, new_bound_segs, size_x, size_y):
     # Choose a colormap from Matplotlib
     colormap_name = 'Blues'  # You can change this to any colormap name, e.g., 'tab20', 'viridis', 'Blues', etc.
@@ -50,6 +51,46 @@ def plotWaveform(y, sr, chords, bars, bound_frames, new_bound_segs, size_x, size
     plt.ylabel('Amplitude')
     plt.show()
 
+#--------------------------------------------------------------------------------
+def plotChordsBars(chords, bars, bound_frames, bound_segs, size_x=40, size_y=5):
+    # Choose a colormap from Matplotlib
+    section_colormap_name = 'rainbow'  # You can change this to any colormap name, e.g., 'tab20', 'viridis', 'Blues', etc.
+
+    # Choose colormaps from Matplotlib
+    section_colormap = plt.get_cmap(section_colormap_name)
+    num_colors = len(set(bound_segs))
+    custom_colors = section_colormap(np.linspace(0, 1, num_colors))
+
+    # Convert bound frames to times
+    bound_times = librosa.frames_to_time(bound_frames)
+
+    # Plot the waveform
+    fig, ax = plt.subplots(figsize=(size_x, size_y))
+    
+    # Plot section boundaries with custom colors
+    for interval, label in zip(zip(bound_times, bound_times[1:]), bound_segs):
+        color_idx = label % len(custom_colors)  # Ensure we don't exceed the color map length
+        rect = patches.Rectangle((interval[0], plt.ylim()[0]), interval[1] - interval[0], plt.ylim()[1] - plt.ylim()[0], facecolor=custom_colors[color_idx], alpha=0.35)
+        ax.add_patch(rect)
+        # Add section label text at the midpoint of the section
+        midpoint = (interval[0] + interval[1]) / 2
+        plt.text(midpoint, 0.98, f"Section {label}", rotation=90, verticalalignment='top', fontsize=12, color='black', weight='normal')
+
+    # Plot chord changes and annotate chords
+    for chord in chords[1:-1]:
+        #plt.axvline(x=chord.timestamp, color='r', linestyle='--', linewidth=0.5)
+        plt.text(chord.timestamp, 0.5, chord.chord, rotation=90, verticalalignment='center', fontsize=10, color='black', weight='normal')
+
+    # Plot vertical lines for each bar
+    for bar in bars:
+        plt.axvline(x=bar[0], color='#555555', linestyle='dotted', linewidth=0.5)
+        plt.text(bar[0] + 0.01, plt.ylim()[0], f"Bar {bars.index(bar) + 1}", rotation=90, verticalalignment='bottom', fontsize=10, color='#000')
+
+    plt.xlabel('Time (s)')
+    plt.ylabel('Amplitude')
+    plt.show()
+    
+#--------------------------------------------------------------------------------
 def plotSpectrogram(sr, C, chords, bars, bound_frames, new_bound_segs, BINS_PER_OCTAVE, size_x, size_y):
     # Choose colormaps from Matplotlib
     section_colormap_name = 'Blues'
@@ -79,7 +120,7 @@ def plotSpectrogram(sr, C, chords, bars, bound_frames, new_bound_segs, BINS_PER_
         ax.add_patch(patches.Rectangle((interval[0], freqs[0]), interval[1] - interval[0], 4096 - freqs[0], facecolor=custom_colors[color_idx], alpha=0.5))
 
     # Plot chord changes and annotate chords
-    for chord in chords:
+    for chord in chords[1:-1]:
         plt.text(chord.timestamp, freqs[-1]+500, chord.chord, rotation=90, verticalalignment='bottom', fontsize=13, color='black')
 
     # Plot vertical lines for each bar
@@ -181,3 +222,24 @@ def plotSections(y, sr, chords, bars, bound_frames, new_bound_segs, size_x, size
         # Display the audio segment
         print(f"Audio for section {subplot_idx + 1}")
         display(Audio(data=y_section, rate=sr))
+        
+#-----------------------------------------------------------
+#Plot only the chords
+def plotChords(y, sr, chords, size_x=40, size_y=5):
+    # Create the plot
+    plt.figure(figsize=(size_x, size_y))
+    librosa.display.waveshow(y, sr=sr, color='#FFAA00')
+
+    font = {'family' : 'Helvetica',
+            'weight' : 'light',
+            'size'   : 12}
+    plt.rc('font', **font)
+
+    # Plot vertical lines for each chord change
+    for chord in chords[1:-1]:
+        plt.axvline(x=chord.timestamp, color='#777', linestyle='dotted', linewidth=0.5)
+        plt.text(chord.timestamp, max(y)+0.15, chord.chord, rotation=90, verticalalignment='bottom', color='black')
+
+    # Display the plot
+    plt.show()
+      
