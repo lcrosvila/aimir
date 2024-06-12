@@ -41,15 +41,15 @@ train_df = df_boomy[df_boomy['artistName'].isin(train_artists)]
 val_df = df_boomy[df_boomy['artistName'].isin(val_artists)]
 test_df = df_boomy[df_boomy['artistName'].isin(test_artists)]
 
-# # save the train, val, test filenames to a txt file
-# with open('/home/laura/aimir/boomy/train.txt', 'w') as f:
-#     f.write('\n'.join(train_df['filename'].values))
+# save the train, val, test filenames to a txt file
+with open('/home/laura/aimir/boomy/train.txt', 'w') as f:
+    f.write('\n'.join(train_df['filename'].values))
 
-# with open('/home/laura/aimir/boomy/val.txt', 'w') as f:
-#     f.write('\n'.join(val_df['filename'].values))
+with open('/home/laura/aimir/boomy/val.txt', 'w') as f:
+    f.write('\n'.join(val_df['filename'].values))
 
-# with open('/home/laura/aimir/boomy/test.txt', 'w') as f:
-#     f.write('\n'.join(test_df['filename'].values))
+with open('/home/laura/aimir/boomy/test.txt', 'w') as f:
+    f.write('\n'.join(test_df['filename'].values))
 
 # Sample 50 songs from train_df
 train_df_sample = train_df.sample(n=50, random_state=42)
@@ -95,15 +95,15 @@ train_df = df_suno[df_suno['prompt'].isin(train_prompts)]
 val_df = df_suno[df_suno['prompt'].isin(val_prompts)]
 test_df = df_suno[df_suno['prompt'].isin(test_prompts)]
 
-# # save the train, val, test filenames to a txt file
-# with open('/home/laura/aimir/suno/train.txt', 'w') as f:
-#     f.write('\n'.join(train_df['filename'].values))
+# save the train, val, test filenames to a txt file
+with open('/home/laura/aimir/suno/train.txt', 'w') as f:
+    f.write('\n'.join(train_df['filename'].values))
 
-# with open('/home/laura/aimir/suno/val.txt', 'w') as f:
-#     f.write('\n'.join(val_df['filename'].values))
+with open('/home/laura/aimir/suno/val.txt', 'w') as f:
+    f.write('\n'.join(val_df['filename'].values))
 
-# with open('/home/laura/aimir/suno/test.txt', 'w') as f:
-#     f.write('\n'.join(test_df['filename'].values))
+with open('/home/laura/aimir/suno/test.txt', 'w') as f:
+    f.write('\n'.join(test_df['filename'].values))
 
 # Sample 50 songs from train_df
 train_df_sample = train_df.sample(n=50, random_state=42)
@@ -149,15 +149,15 @@ train_df = df_udio[df_udio['prompt'].isin(train_prompts)]
 val_df = df_udio[df_udio['prompt'].isin(val_prompts)]
 test_df = df_udio[df_udio['prompt'].isin(test_prompts)]
 
-# # save the train, val, test filenames to a txt file
-# with open('/home/laura/aimir/udio/train.txt', 'w') as f:
-#     f.write('\n'.join(train_df['filename'].values))
+# save the train, val, test filenames to a txt file
+with open('/home/laura/aimir/udio/train.txt', 'w') as f:
+    f.write('\n'.join(train_df['filename'].values))
 
-# with open('/home/laura/aimir/udio/val.txt', 'w') as f:
-#     f.write('\n'.join(val_df['filename'].values))
+with open('/home/laura/aimir/udio/val.txt', 'w') as f:
+    f.write('\n'.join(val_df['filename'].values))
 
-# with open('/home/laura/aimir/udio/test.txt', 'w') as f:
-#     f.write('\n'.join(test_df['filename'].values))
+with open('/home/laura/aimir/udio/test.txt', 'w') as f:
+    f.write('\n'.join(test_df['filename'].values))
 
 # Sample 50 songs from train_df
 train_df_sample = train_df.sample(n=50, random_state=42)
@@ -203,15 +203,15 @@ train_df = df_lastfm[df_lastfm['artist'].isin(train_artists)]
 val_df = df_lastfm[df_lastfm['artist'].isin(val_artists)]
 test_df = df_lastfm[df_lastfm['artist'].isin(test_artists)]
 
-# # save the train, val, test filenames to a txt file
-# with open('/home/laura/aimir/lastfm/train.txt', 'w') as f:
-#     f.write('\n'.join(train_df['filename'].values))
+# save the train, val, test filenames to a txt file
+with open('/home/laura/aimir/lastfm/train.txt', 'w') as f:
+    f.write('\n'.join(train_df['filename'].values))
 
-# with open('/home/laura/aimir/lastfm/val.txt', 'w') as f:
-#     f.write('\n'.join(val_df['filename'].values))
+with open('/home/laura/aimir/lastfm/val.txt', 'w') as f:
+    f.write('\n'.join(val_df['filename'].values))
 
-# with open('/home/laura/aimir/lastfm/test.txt', 'w') as f:
-#     f.write('\n'.join(test_df['filename'].values))
+with open('/home/laura/aimir/lastfm/test.txt', 'w') as f:
+    f.write('\n'.join(test_df['filename'].values))
 
 # Sample 50 songs from train_df
 train_df_sample = train_df.sample(n=50, random_state=42)
