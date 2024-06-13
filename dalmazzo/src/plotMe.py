@@ -7,9 +7,9 @@ from matplotlib.colors import LinearSegmentedColormap, ListedColormap
 from IPython.display import Audio, display
 
 #--------------------------------------------------------------------------------
-def plotWaveform(y, sr, chords, bars, bound_frames, new_bound_segs, size_x, size_y):
+def plotWaveform(y, sr, chords, bars, bound_frames, new_bound_segs, size_x, size_y, colormap_name='viridis'):
     # Choose a colormap from Matplotlib
-    colormap_name = 'Blues'  # You can change this to any colormap name, e.g., 'tab20', 'viridis', 'Blues', etc.
+    # You can change this to any colormap name, e.g., 'tab20', 'viridis', 'Blues', etc.
 
     # Generate a list of colors using the chosen colormap
     colormap = plt.get_cmap(colormap_name)
@@ -26,12 +26,12 @@ def plotWaveform(y, sr, chords, bars, bound_frames, new_bound_segs, size_x, size
 
     # Plot the waveform
     fig, ax = plt.subplots(figsize=(size_x, size_y))
-    librosa.display.waveshow(y_downsampled, sr=sr_downsampled, ax=ax, color='#00AAFF', alpha=0.9)
+    librosa.display.waveshow(y_downsampled, sr=sr_downsampled, ax=ax, color='#00AAFF', alpha=0.75)
 
     # Plot section boundaries with custom colors
     for interval, label in zip(zip(bound_times, bound_times[1:]), new_bound_segs):
         color_idx = label % len(custom_colors)  # Ensure we don't exceed the color map length
-        rect = patches.Rectangle((interval[0], plt.ylim()[0]), interval[1] - interval[0], plt.ylim()[1] - plt.ylim()[0], facecolor=custom_colors[color_idx], alpha=0.35)
+        rect = patches.Rectangle((interval[0], plt.ylim()[0]), interval[1] - interval[0], plt.ylim()[1] - plt.ylim()[0], facecolor=custom_colors[color_idx], alpha=0.4)
         ax.add_patch(rect)
         # Add section label text at the midpoint of the section
         midpoint = (interval[0] + interval[1]) / 2
@@ -46,6 +46,8 @@ def plotWaveform(y, sr, chords, bars, bound_frames, new_bound_segs, size_x, size
     for bar in bars:
         plt.axvline(x=bar[0], color='#555555', linestyle='dotted', linewidth=0.5)
         plt.text(bar[0] + 0.01, plt.ylim()[0], f"Bar {bars.index(bar) + 1}", rotation=90, verticalalignment='bottom', fontsize=10, color='#000')
+        
+    
 
     plt.xlabel('Time (s)')
     plt.ylabel('Amplitude')
@@ -163,7 +165,7 @@ def plotSections(y, sr, chords, bars, bound_frames, new_bound_segs, size_x, size
         for chord in chords[1:-1]:
             if chord.timestamp < section_start or chord.timestamp > section_end:
                 continue
-            ax.text(chord.timestamp - section_start, ax.get_ylim()[1] + 0.01, chord.chord, rotation=90, verticalalignment='bottom', fontsize=12, color='black', weight='normal')
+            ax.text(chord.timestamp - section_start, ax.get_ylim()[1] + 0.01, chord.chord, rotation=90, verticalalignment='bottom', fontsize=12, color='black', weight='light')
 
         # Plot vertical lines for each bar
         for bar in bars:

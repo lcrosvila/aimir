@@ -91,7 +91,7 @@ class formExtractor():
         return bars
     
     #--------------------------------------------------------
-    def getFormAndSave(self, audio_path, id_file, path):
+    def getFormAndSave(self, K, audio_path, id_file, path):
         #first get the audio data
         self.getData(audio_path)
         
@@ -143,7 +143,7 @@ class formExtractor():
         # If we want k clusters, use the first k normalized eigenvectors.
         # Fun exercise: see how the segmentation changes as you vary k
 
-        k = 4
+        k = K
         X = evecs[:, :k] / Cnorm[:, k-1:k]
         
         KM = KMeans(n_clusters=k, n_init=10)
@@ -224,7 +224,7 @@ class formExtractor():
     
     #-------------------------------------------------------
     #Calculate the recurrence matrix
-    def laplacian(self, y, sr, C, Csync, beats, beat_times, plotIt=False):
+    def laplacian(self, y, sr, C, Csync, beats, beat_times, K, plotIt=False):
         
         # Let’s build a weighted recurrence matrix using beat-synchronous CQT (Equation 1) 
         # width=3 prevents links within the same bar mode=’affinity’ here implements S_rep (after Eq. 8)
@@ -256,7 +256,7 @@ class formExtractor():
         
         #Plot the resulting graphs (Figure 1, left and center)
         if plotIt:
-            fig, ax = plt.subplots(ncols=3, sharex=True, sharey=True, figsize=(10, 4))
+            fig, ax = plt.subplots(ncols=3, sharex=True, sharey=True, figsize=(15, 5))
             librosa.display.specshow(Rf, cmap='coolwarm', y_axis='time', x_axis='s', y_coords=beat_times, x_coords=beat_times, ax=ax[0])
             ax[0].set(title='Recurrence similarity')
             ax[0].label_outer()
@@ -286,12 +286,12 @@ class formExtractor():
         # If we want k clusters, use the first k normalized eigenvectors.
         # Fun exercise: see how the segmentation changes as you vary k
 
-        k = 4
+        k = K
         X = evecs[:, :k] / Cnorm[:, k-1:k]
 
         # Plot the resulting representation (Figure 1, center and right)
         if plotIt:
-            fig, ax = plt.subplots(ncols=2, sharey=True, figsize=(10, 5))
+            fig, ax = plt.subplots(ncols=2, sharey=True, figsize=(12, 5))
             librosa.display.specshow(Rf, cmap='coolwarm', y_axis='time', x_axis='time', y_coords=beat_times, x_coords=beat_times, ax=ax[1])
             ax[1].set(title='Recurrence similarity')
             ax[1].label_outer()
@@ -307,12 +307,8 @@ class formExtractor():
         #Let’s use these k components to cluster beats into segments (Algorithm 1)
         if plotIt:
             # and plot the results
-            fig, ax = plt.subplots(ncols=3, sharey=True, figsize=(10, 4))
+            fig, ax = plt.subplots(ncols=2, sharey=True, figsize=(12, 5))
             colors = plt.get_cmap('coolwarm', k)
-
-            librosa.display.specshow(Rf, cmap='coolwarm', y_axis='time', y_coords=beat_times, ax=ax[1])
-            ax[1].set(title='Recurrence matrix')
-            ax[1].label_outer()
 
             librosa.display.specshow(X, y_axis='time', y_coords=beat_times, ax=ax[0])
             ax[0].set(title='Structure components')
@@ -321,11 +317,11 @@ class formExtractor():
             x_coords = np.array([0, 1])
             y_coords = np.array(list(beat_times) + [beat_times[-1]])
 
-            img = librosa.display.specshow(np.atleast_2d(seg_ids).T, cmap=colors, y_axis='time',x_coords=x_coords, y_coords=y_coords, ax=ax[2])
-            ax[2].set(title='Estimated labels')
+            img = librosa.display.specshow(np.atleast_2d(seg_ids).T, cmap=colors, y_axis='time',x_coords=x_coords, y_coords=y_coords, ax=ax[1])
+            ax[1].set(title='Estimated labels')
 
-            ax[2].label_outer()
-            fig.colorbar(img, ax=[ax[2]], ticks=range(k))
+            ax[1].label_outer()
+            fig.colorbar(img, ax=[ax[1]], ticks=range(k))
             
         #define the sections
         bound_beats = 1 + np.flatnonzero(seg_ids[:-1] != seg_ids[1:])
