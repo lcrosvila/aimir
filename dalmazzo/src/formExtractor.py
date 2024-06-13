@@ -29,7 +29,7 @@ class ChordChange:
 class formExtractor():
     def __init__(self):
         #Declare the chordino object
-        self.chordino = Chordino(roll_on=2, spectral_shape=0.5)
+        self.chordino = Chordino(roll_on=1, spectral_shape=0.7)
         self.y = None
         self.sr = None
         self.chords = None
