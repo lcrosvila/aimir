@@ -391,13 +391,13 @@ class formExtractor():
             print(f"Error: The directory '{path}' does not exist.")
             return
 
-        print('Generating File:', name)
+        #print('Generating File:', name)
         # Convert data_dict to a JSON-serializable format
         serializable_data_dict = self.convert_to_serializable(data_dict)
         # Save the JSON-serializable data_dict to a file
         try:
             with open(myPathName, 'w') as json_file:
                 json.dump(serializable_data_dict, json_file, indent=4)
-            print(f"File saved successfully at {myPathName}")
+            #print(f"File saved successfully at {myPathName}")
         except Exception as e:
             print(f"An error occurred while saving the file: {e}")

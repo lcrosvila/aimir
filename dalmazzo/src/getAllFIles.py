@@ -1,5 +1,6 @@
 import os
 import argparse
+from tqdm import tqdm
 import formExtractor as fem
 
 def load_audio_files(path):
@@ -16,17 +17,29 @@ def main(source):
     
     song_files = os.path.join(base_path, 'audio')
     files = load_audio_files(song_files)
-
+    print('\n-----------------------------\n')
     print('number of files:', len(files))
     print('-----------------------------\n')
-    print('Loading files...')
+    print('Processing files...')
     form_data = fem.formExtractor()
 
-    for song in files:
+    failed_files = []
+
+    for song in tqdm(files):
         id_file = os.path.basename(song).split('.')[0]
-        print('-----------------------------')
-        print('Processing Song:', id_file + '.mp3')
-        form_data.getFormAndSave(6, song, id_file, save_to_path)
+        #print('-----------------------------')
+        #print('Processing Song:', id_file + '.mp3')
+        try:
+            form_data.getFormAndSave(6, song, id_file, save_to_path)
+        except Exception as e:
+            print(f'Failed to process {id_file}.mp3: {e}')
+            failed_files.append(song)
+
+    print('Process Completed!')
+    if failed_files:
+        print('Files that could not be processed:', failed_files)
+    else:
+        print('All files were processed successfully!')
 
 if __name__ == "__main__":
     class CustomArgParser(argparse.ArgumentParser):
