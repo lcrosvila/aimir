@@ -38,6 +38,12 @@ def main(source):
     print('Process Completed!')
     if failed_files:
         print('Files that could not be processed:', failed_files)
+        #save files into a txt
+        filePath = os.path.join(save_to_path, 'failed_files.txt')
+        with open(filePath, 'w') as f:
+            for item in failed_files:
+                f.write("%s\n" % item)
+        print(f'Failed files saved to {filePath}')
     else:
         print('All files were processed successfully!')
 
