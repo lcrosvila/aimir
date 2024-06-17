@@ -39,7 +39,7 @@ def main(source):
     if failed_files:
         print('Files that could not be processed:', failed_files)
         #save files into a txt
-        filePath = os.path.join(save_to_path, 'failed_files.txt')
+        filePath = os.path.join(save_to_path, '00_failed_files.txt')
         with open(filePath, 'w') as f:
             for item in failed_files:
                 f.write("%s\n" % item)
