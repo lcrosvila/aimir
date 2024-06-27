@@ -24,13 +24,12 @@ def main(source):
     form_data = fem.formExtractor()
 
     failed_files = []
+    K = 4
 
     for song in tqdm(files):
         id_file = os.path.basename(song).split('.')[0]
-        #print('-----------------------------')
-        #print('Processing Song:', id_file + '.mp3')
         try:
-            form_data.getFormAndSave(6, song, id_file, save_to_path)
+            form_data.getFormAndSave(K, song, id_file, save_to_path)
         except Exception as e:
             print(f'Failed to process {id_file}.mp3: {e}')
             failed_files.append(song)

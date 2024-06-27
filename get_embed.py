@@ -1,3 +1,5 @@
+# python get_embed.py -m musicnn -d /home/laura/aimir/suno/audio /home/laura/aimir/udio/audio
+# python get_embed.py -m clap-laion-music -d /home/laura/aimir/suno/audio /home/laura/aimir/udio/audio
 from argparse import ArgumentParser
 import numpy as np
 import torch
@@ -79,6 +81,7 @@ class MusiCNN(ModelLoader):
     def _get_embedding(self, ffs: list) -> list:
         embs = []
         for ff in ffs:
+            print('file:', ff)
             aggram, tags1, features = self.model(ff, model='MSD_musicnn', 
                         input_length=self.input_length, input_overlap=self.input_hop, extract_features=True)
             emb = features['penultimate']

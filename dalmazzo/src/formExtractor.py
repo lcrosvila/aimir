@@ -146,6 +146,11 @@ class formExtractor():
         k = K
         X = evecs[:, :k] / Cnorm[:, k-1:k]
         
+        # Check for NaN or infinite values in X and clean them
+        if np.isnan(X).any() or np.isinf(X).any():
+            X[np.isnan(X)] = 0.0
+            X[np.isinf(X)] = 0.0
+        
         KM = KMeans(n_clusters=k, n_init=10)
 
         seg_ids = KM.fit_predict(X)
@@ -288,7 +293,12 @@ class formExtractor():
 
         k = K
         X = evecs[:, :k] / Cnorm[:, k-1:k]
-
+        
+        # Check for NaN or infinite values in X and clean them
+        if np.isnan(X).any() or np.isinf(X).any():
+            X[np.isnan(X)] = 0.0
+            X[np.isinf(X)] = 0.0
+       
         # Plot the resulting representation (Figure 1, center and right)
         if plotIt:
             fig, ax = plt.subplots(ncols=2, sharey=True, figsize=(12, 5))

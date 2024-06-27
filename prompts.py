@@ -118,7 +118,15 @@ stop_words = set(stopwords.words('english'))
 # make the play_count column an integer
 if 'play_count' in joint_df.columns:
     joint_df['play_count'] = joint_df['play_count'].astype(int)
-print(joint_df.head(2)[['id', 'prompt']].to_string(index=False))
+print('Top 10 rows by play_count:')
+print(joint_df.head(20)[['id', 'title', 'play_count', 'prompt']].to_string(index=False))
+
+# %%
+# filter to only have udio and print the top 20
+if 'service' in joint_df.columns:
+    joint_df_udio = joint_df[joint_df['service'] == 'udio']
+    print('Top 20 rows by play_count for udio:')
+    print(joint_df_udio.head(20)[['id', 'title', 'play_count', 'prompt']].to_string(index=False))
 # %%
 # grab the tags and prompt of the top 50 rows and find which words are the most common
 if 'play_count' in joint_df.columns:
