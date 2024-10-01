@@ -7,6 +7,16 @@ suno/
 suno_likes/
 udio/
 suno_update/
+models/
+results_prev/
+predictions/
+discogs/
+musicbrainz/
+small/
+*.db
+*.csv
+.vscode/
+audio_metrics/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
