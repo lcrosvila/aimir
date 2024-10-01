@@ -11,31 +11,46 @@ def get_unique_songs(metadata_path):
     metadata = {}
     mp3s = {}
     for file in metadata_files:
-        with open(os.path.join(metadata_path, file)) as f:
-            # print(file)
-            metadata[file] = json.load(f)
-            if 'playlist_clips' in metadata[file]:
-                for item in metadata[file]['playlist_clips']:
-                    item = item['clip']
-                    mp3s[item['audio_url']] = item
-                    # unroll item['metadata']
-                    for key, value in item['metadata'].items():
-                        mp3s[item['audio_url']][key] = value
-                    # remove 'metadata' key
-                    mp3s[item['audio_url']].pop('metadata')
-            elif 'clips' in metadata[file]:
-                for item in metadata[file]['clips']:
-                    mp3s[item['audio_url']] = item
-            elif 'data' in metadata[file]:
-                for item in metadata[file]['data']:
-                    mp3s[item['song_path']] = item
-            elif 'songs' in metadata[file]:
-                for item in metadata[file]['songs']:
-                    mp3s[item['song_path']] = item
-            else:
-                print(file)
-                continue
-    
+        file_path = os.path.join(metadata_path, file)
+        print(f"Processing file: {file_path}")
+        try:
+            with open(file_path) as f:
+                content = f.read()
+                # Check for the "Too many requests." message
+                if "Too many requests." in content:
+                    print(f"File {file_path} contains 'Too many requests.' message. Deleting file.")
+                    os.remove(file_path)
+                    continue
+
+                # Attempt to parse the content as JSON
+                metadata[file] = json.loads(content)
+        except json.JSONDecodeError as e:
+            print(f"Skipping file due to JSON error: {file_path} - {str(e)}")
+            continue
+
+        # Process the loaded JSON data (remaining part of your code)
+        if 'playlist_clips' in metadata[file]:
+            for item in metadata[file]['playlist_clips']:
+                item = item['clip']
+                mp3s[item['audio_url']] = item
+                # Unroll item['metadata']
+                for key, value in item['metadata'].items():
+                    mp3s[item['audio_url']][key] = value
+                # Remove 'metadata' key
+                mp3s[item['audio_url']].pop('metadata')
+        elif 'clips' in metadata[file]:
+            for item in metadata[file]['clips']:
+                mp3s[item['audio_url']] = item
+        elif 'data' in metadata[file]:
+            for item in metadata[file]['data']:
+                mp3s[item['song_path']] = item
+        elif 'songs' in metadata[file]:
+            for item in metadata[file]['songs']:
+                mp3s[item['song_path']] = item
+        else:
+            print(f"Unknown structure in file: {file}")
+            continue
+
     # Create a DataFrame with metadata of unique songs
     df_unique_songs = pd.DataFrame(mp3s.values())
     if 'song_path' in df_unique_songs.columns:

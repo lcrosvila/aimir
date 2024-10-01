@@ -14,13 +14,21 @@ std_song_duration = []
 total_duration = []
 
 for folder in folders:
+    audio_files = []
+    for split in ['train', 'val', 'test']:
+        with open(f'{folder}/{split}.txt', 'r') as f:
+            audio_files += f.read().splitlines() 
+    audio_files = [audio_file + '.mp3' for audio_file in audio_files]
+    
     audio_folder = os.path.join(folder, 'audio')
 
     dataset_name.append(folder.split('/')[-1])
-    dataset_size.append(len(os.listdir(audio_folder)))
+    # dataset_size.append(len(os.listdir(audio_folder)))
+    dataset_size.append(len(audio_files))
 
     durations = []
-    for audio_file in os.listdir(audio_folder):
+    # for audio_file in os.listdir(audio_folder):
+    for audio_file in audio_files:
         # if it's not mp3, skip
         if not audio_file.endswith('.mp3'):
             continue

@@ -34,50 +34,60 @@ columns = [description[0] for description in conn.execute(sql_query).description
 # %%
 import requests
 import re
-from pytube import YouTube
+import subprocess
 
 def download_full_song(row, out_dir='/home/laura/aimir/lastfm/audio'):
+    # Check if the mp3 file already exists
     if os.path.join(out_dir, f'{row[0]}.mp3') in glob.glob(os.path.join(out_dir, '*.mp3')):
         return None
+    
     lastfm_url = row[3]
-
     response = requests.get(lastfm_url)
-    # find the youtube url from the response
+
+    # Extract the YouTube URL from the Last.fm page
     if 'https://www.youtube.com/watch?v=' not in response.text:
         return None
     
     youtube_id = re.search(r'href="https://www.youtube.com/watch\?v=(.*?)"', response.text).group(1)
     youtube_url = f'https://www.youtube.com/watch?v={youtube_id}'
+    print(youtube_url)
 
-    # use pytube to download the video
-    os.system(f'pytube {youtube_url}')
-    # find the mp4 file in the current directory    
-    if len(glob.glob('/home/laura/*.mp4')) == 0:
-        print(glob.glob('/home/laura/*.mp4'))
+    # Use yt-dlp to download the audio
+    try:
+        # Download the audio file in mp3 format
+        command = [
+            'yt-dlp',
+            '--extract-audio',         # Download audio only
+            '--audio-format', 'mp3',   # Convert to mp3
+            '--output', f'{out_dir}/{row[0]}.%(ext)s',  # Output filename
+            youtube_url
+        ]
+
+        # Run the command
+        subprocess.run(command, check=True)
+
+        return youtube_url
+     
+    except subprocess.CalledProcessError as e:
+        print(f"Error downloading {youtube_url}: {e}")
         return None
-    
-    mp4_file = [file for file in glob.glob('/home/laura/*.mp4')][0]
-
-    # convert the mp4 file to mp3
-    file_path = os.path.join(out_dir, f'{row[0]}.mp3')
-    os.system(f"ffmpeg -y -i '{mp4_file}' -q:a 0 -map a {file_path}")
-    # remove the mp4 file
-    os.system(f"rm '{mp4_file}'")
-
-    return youtube_url
+    except Exception as e:
+        print(f"An unexpected error occurred: {e}")
+        return None
 
 # %%
-# # shuffle the rows and select the first 10000
+# # shuffle the rows and select the first 100000
 import random
 random.seed(0)
 random.shuffle(rows)
-rows = rows[:12000]
+rows = rows[12000:120000]
 
 for row in rows:
     # download full song
     youtube_url = download_full_song(row)
     if youtube_url is None:
         continue
+    print(youtube_url)
     # add youtube url to metadata
     row = list(row)
     row.append(youtube_url)

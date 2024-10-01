@@ -9,6 +9,7 @@ from pathlib import Path
 from tqdm import tqdm
 import soundfile
 import os
+import json
 
 class ModelLoader(ABC):
     """
@@ -128,6 +129,11 @@ def main():
             for mp3 in glob.glob(d + '/*.mp3'):
                 npy_path = Path(mp3).parent / 'embeddings' / model.name / (Path(mp3).stem + '.npy')
                 if not npy_path.exists():
+                    # Musicnn does not accept audio files shorter than 3 seconds
+                    if model.name == 'musicnn':
+                        metadata = json.load(open(mp3.replace('.mp3', '.json').replace('audio', 'metadata')))
+                        if metadata['duration'] < 3:
+                            continue
                     mp3s.append(mp3)
                     save_paths.append(npy_path)
 

@@ -74,11 +74,18 @@ for file in files:
     with open(os.path.join(folder, file), 'r') as f:
         # Load JSON data
         data = json.load(f)
+        # musicnn cannot deal with short songs... so we filter out songs with duration less than 3 seconds
+        if isinstance(data['duration'], float) or isinstance(data['duration'], int):
+            if data['duration'] < 3:
+                continue
+        else:
+            continue
         # Append filename and prompt to the results list
         results.append({'filename': file[:-5], 'prompt': data['prompt']})
 
 # Create a DataFrame from the results
 df_suno = pd.DataFrame(results)
+df_suno = df_suno.sample(n=10000, random_state=42)
 
 # make a train val test split making sure no 'prompt' is in more than one set
 # Extract unique prompts
@@ -133,6 +140,7 @@ for file in files:
 
 # Create a DataFrame from the results
 df_udio = pd.DataFrame(results)
+df_udio = df_udio.sample(n=10000, random_state=42)
 
 # make a train val test split making sure no 'prompt' is in more than one set
 # Extract unique prompts
@@ -187,6 +195,7 @@ for file in files:
 
 # Create a DataFrame from the results
 df_lastfm = pd.DataFrame(results)
+df_lastfm = df_lastfm.sample(n=10000, random_state=42)
 
 # make a train val test split making sure no 'artist' is in more than one set
 # Extract unique artists
