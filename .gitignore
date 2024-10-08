@@ -17,6 +17,8 @@ small/
 *.csv
 .vscode/
 audio_metrics/
+*.pkl
+*.csv
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
