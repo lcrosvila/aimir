@@ -139,16 +139,16 @@ def get_results_all(folders = ['suno', 'udio', 'lastfm']):
         classifiers_results = pd.read_csv('classifier_test_results.csv')
 
     #  how many rows have 'suno', 'udio', 'lastfm' as the true class
-    print(classifiers_results['true_class'].value_counts())
+    # print(classifiers_results['true_class'].value_counts())
     # ircamplify results
     ircamplify_results = load_ircamplify_results(folders)
     # how many rows have 'suno', 'udio', 'lastfm' as the true class
-    print(ircamplify_results['true_class'].value_counts())
+    # print(ircamplify_results['true_class'].value_counts())
 
     # merge the two dataframes
     merged_data = pd.merge(classifiers_results, ircamplify_results, on=['true_class', 'file'], how='inner')
 
-    print(merged_data.head())
+    # print(merged_data.head())
     return merged_data
 
 
@@ -193,7 +193,7 @@ def plot_confusion_matrices(y_true, y_pred_svm_ai, y_pred_rf_ai, y_pred_knn_ai, 
 
 # %%
 # try with boomy
-print(load_ircamplify_results(['boomy']))
+# print(load_ircamplify_results(['boomy']))
 
 # %%
 def evaluate_results(data):
@@ -207,14 +207,14 @@ def evaluate_results(data):
     y_pred_knn_child = data['knn_pred_child']
     y_pred_ai = data['is_ai']
 
-    # y_true_ai is True if 'suno' or 'udio' and False if 'lastfm'
-    y_true_ai = np.array([True if label in ['suno', 'udio'] else False for label in y_true])
+    # y_true_ai is Fase if true_class is 'lastfm' and True otherwise
+    y_true_ai = np.array([False if label == 'lastfm' else True for label in y_true])
 
     y_pred_svm_ai = np.array([True if label == 'AI' else False for label in y_pred_svm_parent])
     y_pred_rf_ai = np.array([True if label == 'AI' else False for label in y_pred_rf_parent])
     y_pred_knn_ai = np.array([True if label == 'AI' else False for label in y_pred_knn_parent])
 
-    print(y_pred_svm_ai)
+    # print(y_pred_svm_ai)
 
     print("SVM Classifier:")
     # print(classification_report(y_true_int, y_pred_svm))
@@ -259,5 +259,5 @@ if __name__ == "__main__":
     lastfm = data[data['true_class'] == 'lastfm'].sample(n=1000, random_state=42)
     boomy = data[data['true_class'] == 'boomy']
     data = pd.concat([suno, udio, lastfm, boomy])
-    print(data['true_class'].value_counts())
+    # print(data['true_class'].value_counts())
     evaluate_results(data)
