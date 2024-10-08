@@ -7,7 +7,8 @@
             "request": "launch",
             "program": "${file}",
             "console": "integratedTerminal",
-            "python": "/home/laura/aimir/embeddings_env/bin/python"  // Specify the path to your conda environment's Python interpreter
+            "python": "/home/laura/aimir/embeddings_env/bin/python",  // Specify the path to your conda environment's Python interpreter
+            "args": ["--ai-folders", "suno", "udio", "--embedding-type", "clap-laion-music", "--real-folder", "lastfm"]
         }
     ]
 }

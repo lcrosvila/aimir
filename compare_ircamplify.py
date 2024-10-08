@@ -248,7 +248,7 @@ def evaluate_results(data):
     print(data[(data['is_ai'] == False) & (data['true_class'].isin(['suno', 'udio']))])
     print(data[(data['is_ai'] == True) & (data['true_class'] == 'lastfm')])
 
-    plot_confusion_matrices(y_true, y_pred_svm_ai, y_pred_rf_ai, y_pred_knn_ai, y_pred_ai, normalize=False)
+    plot_confusion_matrices(y_true, y_pred_svm_ai, y_pred_rf_ai, y_pred_knn_ai, y_pred_ai, normalize=True)
 
 if __name__ == "__main__":
     folders = ['suno', 'udio', 'lastfm', 'boomy']
