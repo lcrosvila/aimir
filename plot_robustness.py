@@ -57,6 +57,8 @@ def plot_scores(data, score='f1'):
             plt.figure(figsize=(12, 8))
             attack_data = classifier_data[classifier_data['attack_type'] == attack_type]
             
+            unique_x = []
+
             for class_name in ['lastfm', 'suno', 'udio']:
                 class_data = attack_data[attack_data['class'] == class_name]
                 
@@ -65,6 +67,8 @@ def plot_scores(data, score='f1'):
                 
                 # Convert attack_value to numeric
                 x = pd.to_numeric(class_data['attack_value'], errors='coerce')
+
+                unique_x = np.unique(np.concatenate((unique_x, x)))
                 
                 plt.plot(x, class_data[score], 'x--', markersize=10, label=class_name)
             
@@ -73,7 +77,7 @@ def plot_scores(data, score='f1'):
             plt.ylabel(f'{score} Score', fontsize=14)
             
             # Ensure x-axis contains all values in the data
-            plt.xticks(x.unique())
+            plt.xticks(unique_x)
             
             plt.xticks(rotation=45, ha='right')
             
