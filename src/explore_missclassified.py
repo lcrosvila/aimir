@@ -3,7 +3,7 @@ import joblib
 import numpy as np
 from data_utils import get_split, scale
 import argparse
-from train_ai_detector import DNNClassifier
+from train_ai_detectors_all import DNNClassifier
 
 def load_classifier(parameters):
     embedding_type, ai_folders, classifier_type = parameters

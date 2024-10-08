@@ -1,9 +1,9 @@
 import numpy as np
 import pickle
 from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score
-from sklearn_hierarchical_classification.metrics import h_fbeta_score, multi_labeled
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import os
+from hiclass import LocalClassifierPerNode
 
 def load_single_embedding(file):
     if file.endswith('.npy'):
@@ -39,31 +39,47 @@ def get_split(split, embedding, folders):
     y = np.array(y)
     return X, y
 
-def evaluate_classifier(clf, X, y, graph, folders):
+def evaluate_classifier(clf, X, y, class_hierarchy):
     y_pred = clf.predict(X)
+    # Evaluate parent level
+    y_parent = y[:, 0]
+    y_pred_parent = y_pred[:, 0]
     
-    overall_metrics = {
-        'accuracy': accuracy_score(y, y_pred),
-        'precision': precision_score(y, y_pred, average='weighted'),
-        'recall': recall_score(y, y_pred, average='weighted'),
-        'f1': f1_score(y, y_pred, average='weighted')
+    parent_metrics = {
+        'accuracy': accuracy_score(y_parent, y_pred_parent),
+        'precision': precision_score(y_parent, y_pred_parent, average='weighted'),
+        'recall': recall_score(y_parent, y_pred_parent, average='weighted'),
+        'f1': f1_score(y_parent, y_pred_parent, average='weighted')
     }
     
-    with multi_labeled(y, y_pred, graph) as (y_, y_pred_, graph_):
-        overall_metrics['h_fbeta'] = h_fbeta_score(y_, y_pred_, graph_)
+    # Evaluate child level
+    y_child = y[:, 1]
+    y_pred_child = y_pred[:, 1]
+
+    child_metrics = {
+        'accuracy': accuracy_score(y_child, y_pred_child),
+        'precision': precision_score(y_child, y_pred_child, average='weighted'),
+        'recall': recall_score(y_child, y_pred_child, average='weighted'),
+        'f1': f1_score(y_child, y_pred_child, average='weighted')
+    }
+
+    # evaluate child level for class (suno, udio, lastfm)
+    coarse_metrics = {
+        'suno': {'accuracy': accuracy_score(y_child[y_child == 'suno'], y_pred_child[y_child == 'suno']),
+                 'precision': precision_score(y_child[y_child == 'suno'], y_pred_child[y_child == 'suno'], average='weighted'),
+                 'recall': recall_score(y_child[y_child == 'suno'], y_pred_child[y_child == 'suno'], average='weighted'),
+                 'f1': f1_score(y_child[y_child == 'suno'], y_pred_child[y_child == 'suno'], average='weighted')},
+        'udio': {'accuracy': accuracy_score(y_child[y_child == 'udio'], y_pred_child[y_child == 'udio']),
+                 'precision': precision_score(y_child[y_child == 'udio'], y_pred_child[y_child == 'udio'], average='weighted'),
+                 'recall': recall_score(y_child[y_child == 'udio'], y_pred_child[y_child == 'udio'], average='weighted'),
+                 'f1': f1_score(y_child[y_child == 'udio'], y_pred_child[y_child == 'udio'], average='weighted')},
+        'lastfm': {'accuracy': accuracy_score(y_child[y_child == 'lastfm'], y_pred_child[y_child == 'lastfm']),
+                   'precision': precision_score(y_child[y_child == 'lastfm'], y_pred_child[y_child == 'lastfm'], average='weighted'),
+                   'recall': recall_score(y_child[y_child == 'lastfm'], y_pred_child[y_child == 'lastfm'], average='weighted'),
+                   'f1': f1_score(y_child[y_child == 'lastfm'], y_pred_child[y_child == 'lastfm'], average='weighted')}
+    }
     
-    per_class_metrics = {}
-    for i, folder in enumerate(folders):
-        y_true_class = (y == str(i))
-        y_pred_class = (y_pred == str(i))
-        per_class_metrics[folder] = {
-            'accuracy': accuracy_score(y_true_class, y_pred_class),
-            'precision': precision_score(y_true_class, y_pred_class, average='binary'),
-            'recall': recall_score(y_true_class, y_pred_class, average='binary'),
-            'f1': f1_score(y_true_class, y_pred_class, average='binary')
-        }
-    
-    return overall_metrics, per_class_metrics
+    return parent_metrics, child_metrics, coarse_metrics
 
 def get_transformed(transformation, param, embedding, folders):
     files = []
@@ -88,8 +104,11 @@ def main():
     scaler = saved_data['scaler']
     
     folders = ['suno', 'udio', 'lastfm']
+    class_hierarchy = {
+        'AI': ['suno', 'udio'],
+        'nonAI': ['lastfm']
+    }
 
-    # Define the new structure for splits
     transformations = {
         'original': ['sample'],
         'low_pass': [5000, 8000, 10000, 12000, 16000, 20000],
@@ -98,7 +117,7 @@ def main():
         'decrease_sr': [8000, 16000, 22050, 24000, 44100]
     }
     
-    results = {model_name: {trans: {param: {'overall': {}, 'per_class': {}} for param in params} 
+    results = {model_name: {trans: {param: {'parent': {}, 'child': {}} for param in params} 
                             for trans, params in transformations.items()} 
                for model_name in models.keys()}
     
@@ -112,31 +131,37 @@ def main():
             else:
                 X, y = get_transformed(trans, param, 'clap-laion-music', folders)
             
-            # Encode labels
-            y = np.array([str(folders.index(label)) for label in y])
-
             X_scaled = scaler.transform(X)
+            y =  np.array([['AI', folder] for folder in y if folder in class_hierarchy['AI']] + 
+                          [['nonAI', folder] for folder in y if folder in class_hierarchy['nonAI']])
             
             for model_name, model in models.items():
                 print(f"\n{model_name.upper()} Classifier:")
-                overall_metrics, per_class_metrics = evaluate_classifier(model, X_scaled, y, model.graph_, folders)
-                results[model_name][trans][param]['overall'] = overall_metrics
-                results[model_name][trans][param]['per_class'] = per_class_metrics
+                parent_metrics, child_metrics, coarse_metrics = evaluate_classifier(model, X_scaled, y, class_hierarchy)
+                results[model_name][trans][param]['parent'] = parent_metrics
+                results[model_name][trans][param]['child'] = child_metrics
+                results[model_name][trans][param]['coarse'] = coarse_metrics
                 
-                print("Overall metrics:")
-                for metric, value in overall_metrics.items():
+                print("Parent level metrics:")
+                for metric, value in parent_metrics.items():
                     print(f"{metric}: {value:.4f}")
                 
-                print("\nPer-class metrics:")
-                for folder, metrics in per_class_metrics.items():
-                    print(f"  {folder}:")
+                print("\nChild level metrics:")
+                for metric, value in child_metrics.items():
+                    print(f"{metric}: {value:.4f}")
+                
+                print("\nCoarse level metrics:")
+                for class_, metrics in coarse_metrics.items():
+                    print(f"Class: {class_}")
                     for metric, value in metrics.items():
-                        print(f"    {metric}: {value:.4f}")
+                        print(f"{metric}: {value:.4f}")
+
+                
     
-    with open('evaluation_results_structured.pkl', 'wb') as f:
+    with open('evaluation_results_hierarchical.pkl', 'wb') as f:
         pickle.dump(results, f)
     
-    print("\nEvaluation results have been saved to 'evaluation_results_structured.pkl'")
+    print("\nEvaluation results have been saved to 'evaluation_results_hierarchical.pkl'")
 
 if __name__ == "__main__":
     main()

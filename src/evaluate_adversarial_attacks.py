@@ -9,7 +9,7 @@ from data_utils import get_split, scale, get_split_mp3
 from data_utils import get_embedding_clap, get_embedding_musicnn
 from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score, roc_auc_score
 from scipy.signal import butter, lfilter
-from train_ai_detector import DNNClassifier
+from train_ai_detectors_all import DNNClassifier
 
 def butter_lowpass(cutoff, fs, order=5):
     nyquist = 0.5 * fs
@@ -69,18 +69,24 @@ def decrease_sample_rate(audio, sr, audio_path, target_sr=8000):
 
 def apply_adversarial_attacks(audio, sr, audio_path):
     attacks = {
-        'low_pass_5000': apply_low_pass_filter(audio, sr, audio_path, cutoff=5000),
-        'low_pass_8000': apply_low_pass_filter(audio, sr, audio_path, cutoff=8000),
-        'low_pass_10000': apply_low_pass_filter(audio, sr, audio_path, cutoff=10000),
-        'low_pass_16000': apply_low_pass_filter(audio, sr, audio_path, cutoff=16000),
-        'high_pass_12000': apply_high_pass_filter(audio, sr, audio_path, cutoff=12000),
-        'high_pass_8000': apply_high_pass_filter(audio, sr, audio_path, cutoff=8000),
-        'noise_0.005': add_noise(audio, audio_path, noise_factor=0.005),
-        'noise_0.01': add_noise(audio, audio_path, noise_factor=0.01),
-        'decrease_sr_8000': decrease_sample_rate(audio, sr, audio_path, target_sr=8000),
-        'decrease_sr_16000': decrease_sample_rate(audio, sr, audio_path, target_sr=16000),
-        'decrease_sr_22050': decrease_sample_rate(audio, sr, audio_path, target_sr=22050),
-        'decrease_sr_24000': decrease_sample_rate(audio, sr, audio_path, target_sr=24000)
+        # 'low_pass_5000': apply_low_pass_filter(audio, sr, audio_path, cutoff=5000),
+        # 'low_pass_8000': apply_low_pass_filter(audio, sr, audio_path, cutoff=8000),
+        # 'low_pass_10000': apply_low_pass_filter(audio, sr, audio_path, cutoff=10000),
+        'low_pass_12000': apply_low_pass_filter(audio, sr, audio_path, cutoff=12000),
+        # 'low_pass_16000': apply_low_pass_filter(audio, sr, audio_path, cutoff=16000),
+        'low_pass_24000': apply_low_pass_filter(audio, sr, audio_path, cutoff=20000),
+        'high_pass_5000': apply_high_pass_filter(audio, sr, audio_path, cutoff=5000),
+        # 'high_pass_8000': apply_high_pass_filter(audio, sr, audio_path, cutoff=8000),
+        # 'high_pass_12000': apply_high_pass_filter(audio, sr, audio_path, cutoff=12000),
+        'high_pass_16000': apply_high_pass_filter(audio, sr, audio_path, cutoff=16000),
+        'high_pass_24000': apply_high_pass_filter(audio, sr, audio_path, cutoff=20000),
+        # 'noise_0.005': add_noise(audio, audio_path, noise_factor=0.005),
+        # 'noise_0.01': add_noise(audio, audio_path, noise_factor=0.01),
+        # 'decrease_sr_8000': decrease_sample_rate(audio, sr, audio_path, target_sr=8000),
+        # 'decrease_sr_16000': decrease_sample_rate(audio, sr, audio_path, target_sr=16000),
+        # 'decrease_sr_22050': decrease_sample_rate(audio, sr, audio_path, target_sr=22050),
+        # 'decrease_sr_24000': decrease_sample_rate(audio, sr, audio_path, target_sr=24000),
+        'decrease_sr_44100': decrease_sample_rate(audio, sr, audio_path, target_sr=44100)
     }
     return attacks
 
@@ -169,9 +175,16 @@ def main(args):
             X = np.vstack(adv_embeddings_list)
             y = np.array(labels[attack_name])
             results[attack_name][classifier_type] = evaluate_classifier(classifiers[classifier_type], X, y)
-        
-    # open a text file to save the results
+    
+    # if text file exists, load it and add new results
+    if os.path.exists(f'/home/laura/aimir/results/adv_attacks_{args.embedding_type}_{"_".join(args.ai_folders)}.txt'):
+        with open(f'/home/laura/aimir/results/adv_attacks_{args.embedding_type}_{"_".join(args.ai_folders)}.txt', 'r') as f:
+            old_results = f.read()
+    else:
+        old_results = ""
+
     with open(f'/home/laura/aimir/results/adv_attacks_{args.embedding_type}_{"_".join(args.ai_folders)}.txt', 'w') as f:
+        f.write(old_results)
         for attack_name, attack_results in results.items():
             f.write(f"Attack: {attack_name}\n")
             for classifier_type, metrics in attack_results.items():
@@ -179,6 +192,16 @@ def main(args):
                 for metric, value in metrics.items():
                     f.write(f"{metric}: {value}\n")
                 f.write("\n")
+        
+    # # open a text file to save the results
+    # with open(f'/home/laura/aimir/results/adv_attacks_{args.embedding_type}_{"_".join(args.ai_folders)}.txt', 'w') as f:
+    #     for attack_name, attack_results in results.items():
+    #         f.write(f"Attack: {attack_name}\n")
+    #         for classifier_type, metrics in attack_results.items():
+    #             f.write(f"Classifier: {classifier_type}\n")
+    #             for metric, value in metrics.items():
+    #                 f.write(f"{metric}: {value}\n")
+    #             f.write("\n")
 
     for attack_name, attack_results in results.items():
         print(f"Attack: {attack_name}")

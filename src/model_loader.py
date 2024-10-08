@@ -60,6 +60,10 @@ class CLAPMusic(ModelLoader):
     def _get_embedding(self, ff: str) -> np.ndarray:
         emb = self.model.get_audio_embedding_from_filelist(x = ff, use_tensor=False)
         return emb
+    
+    def _get_embedding_from_data(self, audio: np.ndarray) -> np.ndarray:
+        emb = self.model.get_audio_embedding_from_data(x = audio, use_tensor=False)
+        return emb
 
 class MusiCNN(ModelLoader):
     def __init__(self, input_length = 3, input_hop = 3):

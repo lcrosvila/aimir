@@ -40,6 +40,18 @@ def get_split(split, embedding, real_folder, ai_folders):
     X, y = load_embeddings(real_files, ai_files)
     return X, y
 
+def get_split_multiple_classes(split, embedding, folders):
+    files = {}
+    for folder in folders:
+        with open(f'/home/laura/aimir/{folder}/{split}.txt', 'r') as f:
+            files[folder] = f.read().splitlines()
+    
+    files = [f'/home/laura/aimir/{folder}/audio/embeddings/{embedding}/{file}.npy' for folder in folders for file in files[folder]]
+
+    X, y = load_embeddings([], files)
+    return X, y
+
+
 def get_split_mp3(split, embedding, real_folder, ai_folders):
     ai_files = {}
     with open(f'/home/laura/aimir/{real_folder}/{split}.txt', 'r') as f:

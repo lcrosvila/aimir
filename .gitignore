@@ -19,6 +19,7 @@ small/
 audio_metrics/
 *.pkl
 *.csv
+credentials/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
