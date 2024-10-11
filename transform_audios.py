@@ -84,6 +84,35 @@ def decrease_sample_rate(audio, sr, audio_path, target_sr=8000):
     np.save(save_file, emb)
     return emb
 
+def add_tone(audio, sr, audio_path, tone_freq=10000, tone_db=3):
+    # Add a tone to an audio file at a specified frequency and amplitude.
+    file = audio_path.split('/')[-1].split('.')[0]
+    folder = audio_path.split('/')[-3]
+    save_file = f'/home/laura/aimir/{folder}/audio/transformed/sine_{tone_freq}_{tone_db}/{file}.npy'
+    if os.path.exists(save_file):
+        return np.load(save_file)
+    else:
+        # Generate time array
+        t = np.arange(len(audio)) / sr
+        tone = np.sin(2 * np.pi * tone_freq * t)
+        amplitude_factor = 10 ** (tone_db / 20)
+        
+        # Normalize the tone to match the amplitude of the original audio
+        max_amplitude = np.max(np.abs(audio))
+        tone = tone * max_amplitude * amplitude_factor
+        
+        # Add the tone to the original audio
+        y_with_tone = audio + tone
+        
+        # Normalize the result to prevent clipping
+        y_with_tone = y_with_tone / np.max(np.abs(y_with_tone))
+
+    os.makedirs(os.path.dirname(save_file), exist_ok=True)
+    emb = model._get_embedding_from_data([y_with_tone])[0]
+    np.save(save_file, emb)
+    return emb
+        
+
 def main():
     split = 'sample'
     folders = ['suno', 'udio', 'lastfm']
@@ -106,6 +135,7 @@ def main():
         apply_low_pass_filter(audio, sr, file, cutoff=20000)
         apply_high_pass_filter(audio, sr, file, cutoff=5000)
         apply_high_pass_filter(audio, sr, file, cutoff=8000)
+        apply_high_pass_filter(audio, sr, file, cutoff=10000)
         apply_high_pass_filter(audio, sr, file, cutoff=12000)
         apply_high_pass_filter(audio, sr, file, cutoff=16000)
         apply_high_pass_filter(audio, sr, file, cutoff=20000)
@@ -116,6 +146,7 @@ def main():
         decrease_sample_rate(audio, sr, file, target_sr=22050)
         decrease_sample_rate(audio, sr, file, target_sr=24000)
         decrease_sample_rate(audio, sr, file, target_sr=44100)
+        add_tone(audio, sr, file, tone_freq=10000, tone_db=3)
     
     print("All files processed.")
 

@@ -47,12 +47,12 @@ def load_audios(files):
     
     return audios, classes
 
-def add_sin(X, sr, y, classes):
+def add_sin(X, sr, y, classes, freq=10000):
     # add a 10000Hz sin wave (+3dB) to each audio file that has a class in classes
     for i, (audio, sr_audio) in enumerate(zip(X, sr)):
         if y[i] in classes:
             t = np.arange(len(audio)) / sr_audio
-            audio += 10 ** (3/20) * np.sin(2 * np.pi * 10000 * t)
+            audio += 10 ** (3/20) * np.sin(2 * np.pi * freq * t)
     return X
 
 def add_sin_varying_amplitude(X, sr, y, classes, amplitudes):
@@ -94,106 +94,51 @@ X_audios, sr_audios = zip(*X_audios)
 
 X_audios = add_sin(X_audios, sr_audios, y, ['suno', 'udio'])
 
-# amplitudes = [3, 6, 10, 20]  # in dB
-# X_modified = add_sin_varying_amplitude(X_audios, sr_audios, y, ['suno', 'udio'], amplitudes)
+y = ['nonAI' if label == 'lastfm' else 'AI' for label in y]
 
 X = get_emb(X_audios, batch_size=4)
 
-# add parent to classes (e.g. 'suno' -> ['AI', 'suno'], 'udio' -> ['AI', 'udio'], 'lastfm' -> ['nonAI', 'lastfm'])
-class_hierarchy = {
-    'AI': ['suno', 'udio'],
-    'nonAI': ['lastfm']
-}
-
-y = np.array([['AI', folder] for folder in y if folder in class_hierarchy['AI']] + [['nonAI', folder] for folder in y if folder in class_hierarchy['nonAI']])
-
-# split train and validation set
+# Split train and validation set
 X_train, X_val, y_train, y_val = train_test_split(X, y, test_size=0.2, random_state=RANDOM_STATE)
 
-# %%
-# train local classifiers
-base_estimators = {
-    'svc': SVC(probability=True, random_state=RANDOM_STATE),
-    'rf': RandomForestClassifier(random_state=RANDOM_STATE),
-    'knn': KNeighborsClassifier()
-}
+# Train SVC
+svc = SVC(probability=True, random_state=RANDOM_STATE)
+svc.fit(X_train, y_train)
 
-results = {}
-models = {}
-
-for name, base_estimator in base_estimators.items():
-    clf = LocalClassifierPerNode(
-        local_classifier=base_estimator,
-        binary_policy="inclusive"  # use inclusive policy for binary classifiers
-    )
-    
-    clf.fit(X_train, y_train)
-    y_pred = clf.predict(X_val)
-
-    results_parent = classification_report(y_val[:, 0], y_pred[:, 0], output_dict=True)
-    results_children = classification_report(y_val[:, 1], y_pred[:, 1], output_dict=True)
-    results[name] = {'parent': results_parent, 'children': results_children}
-    models[name] = clf
-
-results
+# Evaluate SVC
+y_pred = svc.predict(X_val)
+results = classification_report(y_val, y_pred, output_dict=True)
+print("SVC Results:", results)
 
 # %%
-# apply low pass filter to audio files at cutoff frequencies 5000, 8000, 10000, 12000, 16000, 20000
-X_audios_low_pass = {}
-
-for cutoff in [5000, 8000, 10000, 12000, 16000, 20000, sr_audios[0]]:
-    X_audios_low_pass[cutoff] = []
-    for audio, sr in zip(X_audios, sr_audios):
-        emb = apply_low_pass_filter(audio, sr, cutoff=cutoff)
-        X_audios_low_pass[cutoff].append(emb)
-
-X_low_pass = {cutoff: get_emb(X_audios_low_pass[cutoff]) for cutoff in X_audios_low_pass.keys()}
-
-# %%
-# evaluate for each cutoff
+# Apply low pass filter and evaluate
+cutoffs = [5000, 8000, 10000, 12000, 16000, 20000, sr_audios[0]//2]
 results_low_pass = {}
 
-for cutoff, X in X_low_pass.items():
-    y_pred = {name: model.predict(X) for name, model in models.items()}
-    results_parent = {name: classification_report(y[:, 0], y_pred[name][:, 0], output_dict=True) for name in models.keys()}
-    results_children = {name: classification_report(y[:, 1], y_pred[name][:, 1], output_dict=True) for name in models.keys()}
-    results_low_pass[cutoff] = {'parent': results_parent, 'children': results_children}
-
-results_low_pass
-
+for cutoff in cutoffs:
+    X_low_pass = np.array([apply_low_pass_filter(audio, sr, cutoff=cutoff) for audio, sr in zip(X_audios, sr_audios)])
+    y_pred = svc.predict(X_low_pass)
+    results_low_pass[cutoff] = classification_report(y, y_pred, output_dict=True)['weighted avg']['f1-score']
 
 # %% 
 # plot how the classification results change with the cutoff frequency
 import matplotlib.pyplot as plt
 import seaborn as sns
 
-parent_results = {name: [results_low_pass[cutoff]['parent'][name]['weighted avg']['f1-score'] for cutoff in X_low_pass.keys()] for name in models.keys()}
-child_results = {name: [results_low_pass[cutoff]['children'][name]['weighted avg']['f1-score'] for cutoff in X_low_pass.keys()] for name in models.keys()}
-cutoffs = list(X_low_pass.keys())
-
-# in column one, have the parent results, in column two the child results
-# in row one, have the svc results, in row two the rf results, in row three the knn results
-fig, ax = plt.subplots(3, 2, figsize=(12, 12))
-for i, (name, results) in enumerate(parent_results.items()):
-    sns.lineplot(x=cutoffs, y=parent_results[name], ax=ax[i, 0])
-    ax[i, 0].set_title(f'{name} parent')
-    ax[i, 0].set_xlabel('Cutoff frequency')
-    ax[i, 0].set_ylabel('F1 score')
-    
-    sns.lineplot(x=cutoffs, y=child_results[name], ax=ax[i, 1])
-    ax[i, 1].set_title(f'{name} child')
-    ax[i, 1].set_xlabel('Cutoff frequency')
-    ax[i, 1].set_ylabel('F1 score')
-
-plt.tight_layout()
+# Plot results
+plt.figure(figsize=(10, 6))
+sns.lineplot(x=cutoffs, y=list(results_low_pass.values()))
+plt.xticks(cutoffs)
+plt.grid(axis='both')
+plt.title('SVC Classification Results with Different Cutoff Frequencies')
+plt.xlabel('Cutoff Frequency (Hz)')
+plt.ylabel('F1 Score')
 plt.show()
 
 # %%
 from sklearn.decomposition import PCA
-import matplotlib.pyplot as plt
-import seaborn as sns
 
-def analyze_embeddings(embeddings_dict, y):
+def analyze_embeddings(embeddings_dict, labels):
     pca = PCA(n_components=2)
     
     plt.figure(figsize=(15, 5 * len(embeddings_dict)))
@@ -201,7 +146,7 @@ def analyze_embeddings(embeddings_dict, y):
         pca_result = pca.fit_transform(emb)
         
         plt.subplot(len(embeddings_dict), 1, i+1)
-        sns.scatterplot(x=pca_result[:, 0], y=pca_result[:, 1], hue=y[:, 1], style=y[:, 0])
+        sns.scatterplot(x=pca_result[:, 0], y=pca_result[:, 1], hue=labels)
         plt.title(f'PCA of CLAP Embeddings - {condition}')
         plt.xlabel('First Principal Component')
         plt.ylabel('Second Principal Component')
@@ -209,7 +154,6 @@ def analyze_embeddings(embeddings_dict, y):
     plt.tight_layout()
     plt.show()
 
-# Usage
 embeddings_dict = {
     'Original': get_emb(X_audios),
     'Low-pass 5kHz': get_emb([apply_low_pass_filter(audio, sr, 5000) for audio, sr in zip(X_audios, sr_audios)]),
@@ -220,12 +164,12 @@ embeddings_dict = {
 analyze_embeddings(embeddings_dict, y)
 
 # %%
-# how different are original and low-pass sr=20kHz embeddings?
 from sklearn.metrics import pairwise_distances
 
 for key in embeddings_dict.keys():
-    dist = pairwise_distances(embeddings_dict['Original'].T, embeddings_dict[key].T)
-    # plot heatmap of distances
-    sns.heatmap(dist)
-    plt.title(f'Pairwise distances between embeddings - {key}')
-    plt.show()
+    if key != 'Original':
+        dist = pairwise_distances(embeddings_dict['Original'], embeddings_dict[key])
+        plt.figure(figsize=(10, 8))
+        sns.heatmap(dist, cmap='viridis')
+        plt.title(f'Pairwise distances between Original and {key} embeddings')
+        plt.show()

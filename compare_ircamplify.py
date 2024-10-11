@@ -152,7 +152,7 @@ def get_results_all(folders = ['suno', 'udio', 'lastfm']):
     return merged_data
 
 
-def plot_confusion_matrices(y_true, y_pred_svm_ai, y_pred_rf_ai, y_pred_knn_ai, y_pred_ai, normalize=False):
+def plot_confusion_matrices(y_true, y_pred_svm_ai, y_pred_rf_ai, y_pred_knn_ai, y_pred_ai, normalize=True):
     # Create a 2x2 subplot
     fig, axes = plt.subplots(2, 2, figsize=(20, 20))
     fig.suptitle("Confusion Matrices for Different Classifiers", fontsize=24)
@@ -196,7 +196,7 @@ def plot_confusion_matrices(y_true, y_pred_svm_ai, y_pred_rf_ai, y_pred_knn_ai, 
 # print(load_ircamplify_results(['boomy']))
 
 # %%
-def evaluate_results(data):
+def evaluate_results(data, normalize=False):
     # Evaluate the results
     y_true = data['true_class']
     y_pred_svm_parent = data['svm_pred_parent']
@@ -248,7 +248,7 @@ def evaluate_results(data):
     print(data[(data['is_ai'] == False) & (data['true_class'].isin(['suno', 'udio']))])
     print(data[(data['is_ai'] == True) & (data['true_class'] == 'lastfm')])
 
-    plot_confusion_matrices(y_true, y_pred_svm_ai, y_pred_rf_ai, y_pred_knn_ai, y_pred_ai, normalize=True)
+    plot_confusion_matrices(y_true, y_pred_svm_ai, y_pred_rf_ai, y_pred_knn_ai, y_pred_ai, normalize=normalize)
 
 if __name__ == "__main__":
     folders = ['suno', 'udio', 'lastfm', 'boomy']
@@ -260,4 +260,4 @@ if __name__ == "__main__":
     boomy = data[data['true_class'] == 'boomy']
     data = pd.concat([suno, udio, lastfm, boomy])
     # print(data['true_class'].value_counts())
-    evaluate_results(data)
+    evaluate_results(data, normalize=True)
