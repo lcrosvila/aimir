@@ -365,7 +365,7 @@ plt.show()
 #   creating-lowpass-filter-in-scipy-understanding-methods-and-units
 
 import numpy as np
-from scipy.signal import butter, filtfilt, freqz
+from scipy.signal import butter, filtfilt, freqz, lfilter
 from matplotlib import pyplot as plt
 
 
@@ -376,9 +376,12 @@ def butter_lowpass(cutoff, fs, order=5):
     return b, a
 
 
-def butter_lowpass_filter(data, cutoff, fs, order=5):
+def butter_lowpass_filter(data, cutoff, fs, order=5, filter_type='filtfilt'):
     b, a = butter_lowpass(cutoff, fs, order=order)
-    y = filtfilt(b, a, data)
+    if filter_type == 'lfilter':
+        y = lfilter(b, a, data)
+    elif filter_type == 'filtfilt':
+        y = filtfilt(b, a, data)
     return y
 
 orders = [5, 10, 20, 30, 40]
@@ -413,10 +416,12 @@ for order in orders:
 
     # Filter the data, and plot both the original and filtered signals.
     y = butter_lowpass_filter(data, cutoff, fs, order)
+    y_lfilter = butter_lowpass_filter(data, cutoff, fs, order, filter_type='lfilter')
 
     plt.subplot(2, 1, 2)
     plt.plot(t, data, 'b-', label='data')
-    plt.plot(t, y, 'g-', linewidth=2, label='filtered data')
+    plt.plot(t, y, 'g-', linewidth=2, label='filtered data (filtfilt)')
+    plt.plot(t, y_lfilter, 'r-', linewidth=2, label='filtered data (lfilter)')
     plt.xlabel('Time [sec]')
     plt.grid()
     plt.legend()

@@ -169,45 +169,6 @@ plt.legend()
 plt.show()
 
 # %%
-from sklearn.decomposition import PCA
-
-def analyze_embeddings(embeddings_dict, labels):
-    pca = PCA(n_components=2)
-    
-    plt.figure(figsize=(15, 5 * len(embeddings_dict)))
-    for i, (condition, emb) in enumerate(embeddings_dict.items()):
-        pca_result = pca.fit_transform(emb)
-        
-        plt.subplot(len(embeddings_dict), 1, i+1)
-        sns.scatterplot(x=pca_result[:, 0], y=pca_result[:, 1], hue=labels)
-        plt.title(f'PCA of CLAP Embeddings - {condition}')
-        plt.xlabel('First Principal Component')
-        plt.ylabel('Second Principal Component')
-    
-    plt.tight_layout()
-    plt.show()
-
-embeddings_dict = {
-    'Original': get_emb(X_audios),
-    'Low-pass 5kHz': get_emb([apply_low_pass_filter(audio, sr, 5000, order=order)[0] for audio, sr in zip(X_audios, sr_audios)]),
-    'Low-pass 20kHz': get_emb([apply_low_pass_filter(audio, sr, 20000, order=order)[0] for audio, sr in zip(X_audios, sr_audios)]),
-    # f'Low-pass {(sr_audios[0]//2)//1000}kHz': get_emb([apply_low_pass_filter(audio, sr, sr//2, order=order)[0] for audio, sr in zip(X_audios, sr_audios)])
-}
-
-analyze_embeddings(embeddings_dict, y)
-
-# %%
-from sklearn.metrics import pairwise_distances
-
-for key in embeddings_dict.keys():
-    # if key != 'Original':
-    dist = pairwise_distances(embeddings_dict['Original'].T, embeddings_dict[key].T)
-    plt.figure(figsize=(10, 8))
-    sns.heatmap(dist, cmap='viridis')
-    plt.title(f'Pairwise distances between Original and {key} embeddings')
-    plt.show()
-
-# %%
 # grab one audio, listen to it and all low-pass filtered versions
 import IPython.display as ipd
 
@@ -251,6 +212,39 @@ _, audio_low_pass = apply_low_pass_filter(audio, sr, cutoff=cutoffs[5], order=or
 ipd.Audio(audio_low_pass, rate=sr)
 
 # %%
-print(f"cut-off frequency: {cutoffs[6]}")
-_, audio_low_pass = apply_low_pass_filter(audio, sr, cutoff=cutoffs[6], order=order)
-ipd.Audio(audio_low_pass, rate=sr)
+from sklearn.decomposition import PCA
+
+def analyze_embeddings(embeddings_dict, labels):
+    pca = PCA(n_components=2)
+    
+    plt.figure(figsize=(15, 5 * len(embeddings_dict)))
+    for i, (condition, emb) in enumerate(embeddings_dict.items()):
+        pca_result = pca.fit_transform(emb)
+        
+        plt.subplot(len(embeddings_dict), 1, i+1)
+        sns.scatterplot(x=pca_result[:, 0], y=pca_result[:, 1], hue=labels)
+        plt.title(f'PCA of CLAP Embeddings - {condition}')
+        plt.xlabel('First Principal Component')
+        plt.ylabel('Second Principal Component')
+    
+    plt.tight_layout()
+    plt.show()
+
+embeddings_dict = {
+    'Original': get_emb(X_audios, batch_size=4),
+    'Low-pass 5kHz': get_emb([apply_low_pass_filter(audio, sr, 5000, order=order)[0] for audio, sr in zip(X_audios, sr_audios)], batch_size=4),
+    'Low-pass 20kHz': get_emb([apply_low_pass_filter(audio, sr, 20000, order=order)[0] for audio, sr in zip(X_audios, sr_audios)], batch_size=4)
+}
+
+analyze_embeddings(embeddings_dict, y)
+
+# %%
+from sklearn.metrics import pairwise_distances
+
+for key in embeddings_dict.keys():
+    # if key != 'Original':
+    dist = pairwise_distances(embeddings_dict['Original'].T, embeddings_dict[key].T)
+    plt.figure(figsize=(10, 8))
+    sns.heatmap(dist, cmap='viridis')
+    plt.title(f'Pairwise distances between Original and {key} embeddings')
+    plt.show()

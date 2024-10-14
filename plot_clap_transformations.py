@@ -174,7 +174,7 @@ with open('models_and_scaler.pkl', 'rb') as f:
 
 scaler = saved_data['scaler']
 
-# plot_transformations(orig_file, transformations, scaler)
+plot_transformations(orig_file, transformations, scaler)
 print(get_table_variances(orig_file, transformations, scaler))
 
 # %%
