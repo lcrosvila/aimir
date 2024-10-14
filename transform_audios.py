@@ -1,7 +1,7 @@
 import os
 import numpy as np
 import librosa
-from scipy.signal import butter, lfilter
+from scipy.signal import butter, filtfilt
 from tqdm import tqdm
 from src.model_loader import CLAPMusic
 
@@ -31,7 +31,7 @@ def apply_low_pass_filter(audio, sr, audio_path, cutoff=5000, order=5):
         return np.load(save_file)
     else:
         b, a = butter_lowpass(cutoff, sr, order=order)
-        y = lfilter(b, a, audio)
+        y = filtfilt(b, a, audio)
     os.makedirs(os.path.dirname(save_file), exist_ok=True)
     emb = model._get_embedding_from_data([y])[0]
     np.save(save_file, emb)
@@ -51,7 +51,7 @@ def apply_high_pass_filter(audio, sr, audio_path, cutoff=5000, order=5):
         return np.load(save_file)
     else:
         b, a = butter_highpass(cutoff, sr, order=order)
-        y = lfilter(b, a, audio)
+        y = filtfilt(b, a, audio)
     os.makedirs(os.path.dirname(save_file), exist_ok=True)
     emb = model._get_embedding_from_data([y])[0]
     np.save(save_file, emb)

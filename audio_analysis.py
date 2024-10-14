@@ -22,16 +22,16 @@ def get_split_mp3(split, folders):
             files.extend([f'/home/laura/aimir/{folder}/audio/{file}.mp3' for file in folder_files])
     return files
 
-def load_audio(file):
-    y, sr = librosa.load(file, sr=None) 
+def load_audio(file, duration=None):
+    y, sr = librosa.load(file, sr=None, duration=duration) 
     return y, sr, file.split('/')[-3]
 
-def load_audios(files):
+def load_audios(files, duration=None):
     audios = []
     classes = []
     
     with ThreadPoolExecutor(max_workers=os.cpu_count()) as executor:
-        future_to_file = {executor.submit(load_audio, file): file for file in files}
+        future_to_file = {executor.submit(load_audio, file, duration): file for file in files}
         for future in tqdm(as_completed(future_to_file), total=len(files), desc="Loading audio files"):
             y, sr, class_name = future.result()
             audios.append((y, sr))
@@ -93,7 +93,7 @@ def get_mel_spec(config, x):
 split = 'sample'
 folders = ['suno', 'udio', 'lastfm']
 files = get_split_mp3(split, folders)
-audios, classes = load_audios(files)
+audios, classes = load_audios(files, duration=10)
 # %%
 # from https://github.com/LAION-AI/CLAP/blob/main/src/laion_clap/clap_module/model_configs/HTSAT-base.json
 audio_cfg = {
@@ -266,7 +266,7 @@ print('Largest value: ' + str(np.max(audio_rep2)))
 print('Mean value: ' + str(np.mean(audio_rep2)))
 
 #%% plot Mel spectrogram from htsat
-print('Mel spectrogram from HTSAT')
+print('Mel spectrogram from HTSAT (already in log scale)')
 audio_rep = get_mel_spec(audio_cfg, torch.tensor(y).unsqueeze(0))
 audio_rep = audio_rep.squeeze().detach().numpy()
 
@@ -305,27 +305,121 @@ model = CLAPMusic()
 model.load_model()
 
 # %%
-# create various impulse responses
-def impulse_response(t, sr, freq):
-    return np.sin(2 * np.pi * freq * t)
+from scipy.fft import fft, ifft
+def generate_delta(length):
+    delta = np.zeros(length)
+    delta[0] = 1
+    return delta
 
-# calculate the energy of the IRs for different frequencies after passing through model (in dBs)
-def calculate_energy(t, sr, freqs):
-    energies = []
-    for freq in freqs:
-        ir = impulse_response(t, sr, freq)
-        emb = model._get_embedding_from_data([ir])[0]
-        energy = np.sum(emb**2)
-        energies.append(10 * np.log10(energy))
-    return energies
+def generate_sine(frequency, sample_rate, duration):
+    t = np.linspace(0, duration, int(sample_rate * duration), endpoint=False)
+    return np.sin(2 * np.pi * frequency * t)
 
-# plot the energy of the IRs for different frequencies
-t = np.arange(0, 1, 1/sr)
-freqs = np.linspace(20, 20000, 100)
-energies = calculate_energy(t, sr, freqs)
+# Parameters
+sample_rate = 48000  
+duration = 1  # 1 second
+num_samples = int(sample_rate * duration)
 
-plt.plot(freqs, energies)
-plt.xlabel('Frequency (Hz)')
-plt.ylabel('Energy (dB)')
-plt.xscale('log')
+# Generate delta function
+delta = generate_delta(num_samples)
+
+# Get embeddings for delta function
+delta_embeddings = model._get_embedding_from_data([delta])
+
+# Ensure delta_embeddings is a NumPy array
+if not isinstance(delta_embeddings, np.ndarray):
+    delta_embeddings = np.array(delta_embeddings)
+
+# Calculate energy
+energy_norm = np.linalg.norm(delta_embeddings)
+energy_db = 20 * np.log10(energy_norm)
+
+print(f"Energy (Frobenius norm) of the delta response: {energy_norm}")
+print(f"Energy in decibels (dB): {energy_db} dB")
+
+# %%
+# Plot delta response
+plt.figure(figsize=(12, 6))
+plt.plot(delta_embeddings.squeeze())
+plt.title("CLAP Delta Function Response")
+plt.xlabel("Embedding Dimension")
+plt.ylabel("Amplitude")
+plt.grid(True)
 plt.show()
+
+# %%
+# Frequency response analysis
+fft_result = fft(delta_embeddings.squeeze())
+frequencies = np.fft.fftfreq(len(fft_result), 1/sample_rate)
+
+plt.figure(figsize=(12, 6))
+plt.semilogx(frequencies[:len(frequencies)//2], 20 * np.log10(np.abs(fft_result[:len(fft_result)//2])))
+plt.title("Frequency Response of CLAP Delta Function")
+plt.xlabel("Frequency (Hz)")
+plt.ylabel("Magnitude (dB)")
+plt.grid(True)
+plt.show()
+
+# %%
+# https://stackoverflow.com/questions/25191620/
+#   creating-lowpass-filter-in-scipy-understanding-methods-and-units
+
+import numpy as np
+from scipy.signal import butter, filtfilt, freqz
+from matplotlib import pyplot as plt
+
+
+def butter_lowpass(cutoff, fs, order=5):
+    nyq = 0.5 * fs
+    normal_cutoff = cutoff / nyq
+    b, a = butter(order, normal_cutoff, btype='low', analog=False)
+    return b, a
+
+
+def butter_lowpass_filter(data, cutoff, fs, order=5):
+    b, a = butter_lowpass(cutoff, fs, order=order)
+    y = filtfilt(b, a, data)
+    return y
+
+orders = [5, 10, 20, 30, 40]
+
+for order in orders:
+    fs = 30.0       # sample rate, Hz
+    cutoff = 3.667  # desired cutoff frequency of the filter, Hz
+
+    # Get the filter coefficients so we can check its frequency response.
+    b, a = butter_lowpass(cutoff, fs, order)
+
+    # Plot the frequency response.
+    w, h = freqz(b, a, worN=8000)
+    plt.subplot(2, 1, 1)
+    plt.plot(0.5*fs*w/np.pi, np.abs(h), 'b')
+    plt.plot(cutoff, 0.5*np.sqrt(2), 'ko')
+    plt.axvline(cutoff, color='k')
+    plt.xlim(0, 0.5*fs)
+    plt.title(f"Lowpass Filter Frequency Response. Order: {order}")
+    plt.xlabel('Frequency [Hz]')
+    plt.grid()
+
+
+    # Demonstrate the use of the filter.
+    # First make some data to be filtered.
+    T = 5.0             # seconds
+    n = int(T * fs)     # total number of samples
+    t = np.linspace(0, T, n, endpoint=False)
+    # "Noisy" data.  We want to recover the 1.2 Hz signal from this.
+    data = np.sin(1.2*2*np.pi*t) + 1.5*np.cos(9*2*np.pi*t) \
+            + 0.5*np.sin(12.0*2*np.pi*t)
+
+    # Filter the data, and plot both the original and filtered signals.
+    y = butter_lowpass_filter(data, cutoff, fs, order)
+
+    plt.subplot(2, 1, 2)
+    plt.plot(t, data, 'b-', label='data')
+    plt.plot(t, y, 'g-', linewidth=2, label='filtered data')
+    plt.xlabel('Time [sec]')
+    plt.grid()
+    plt.legend()
+
+    plt.subplots_adjust(hspace=0.35)
+    plt.show()

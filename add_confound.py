@@ -5,7 +5,7 @@ import librosa
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import classification_report
 
-from scipy.signal import butter, lfilter
+from scipy.signal import butter, filtfilt
 
 from sklearn.svm import SVC
 from sklearn.ensemble import RandomForestClassifier
@@ -47,12 +47,12 @@ def load_audios(files):
     
     return audios, classes
 
-def add_sin(X, sr, y, classes, freq=10000):
+def add_sin(X, sr, y, classes, freq=10000, amp_db=3):
     # add a 10000Hz sin wave (+3dB) to each audio file that has a class in classes
     for i, (audio, sr_audio) in enumerate(zip(X, sr)):
         if y[i] in classes:
             t = np.arange(len(audio)) / sr_audio
-            audio += 10 ** (3/20) * np.sin(2 * np.pi * freq * t)
+            audio += 10 ** (amp_db/20) * np.sin(2 * np.pi * freq * t)
     return X
 
 def add_sin_varying_amplitude(X, sr, y, classes, amplitudes):
@@ -69,14 +69,14 @@ def add_sin_varying_amplitude(X, sr, y, classes, amplitudes):
 def butter_lowpass(cutoff, fs, order=5):
     nyquist = 0.5 * fs
     normal_cutoff = cutoff / nyquist
-    b, a = butter(order, normal_cutoff, btype='low', analog=True)
+    b, a = butter(order, normal_cutoff, btype='low', analog=False)
     return b, a
 
 def apply_low_pass_filter(audio, sr, cutoff=5000, order=5):
     b, a = butter_lowpass(cutoff, sr, order=order)
-    y = lfilter(b, a, audio)
+    y = filtfilt(b, a, audio)
     emb = model._get_embedding_from_data([y])[0]
-    return emb
+    return emb, y
 
 def get_emb(X, batch_size=32):
     embeddings = []
@@ -88,13 +88,13 @@ def get_emb(X, batch_size=32):
 RANDOM_STATE = 42
 folders = ['suno', 'udio', 'lastfm']
 
-X = get_split_mp3('sample', folders)
-X_audios, y = load_audios(X)
+mp3s = get_split_mp3('sample', folders)
+X_audios, y_orig = load_audios(mp3s)
 X_audios, sr_audios = zip(*X_audios)
 
-X_audios = add_sin(X_audios, sr_audios, y, ['suno', 'udio'])
+X_audios = add_sin(X_audios, sr_audios, y_orig, ['suno', 'udio'], freq=10000, amp_db=3)
 
-y = ['nonAI' if label == 'lastfm' else 'AI' for label in y]
+y = ['nonAI' if label == 'lastfm' else 'AI' for label in y_orig]
 
 X = get_emb(X_audios, batch_size=4)
 
@@ -112,13 +112,44 @@ print("SVC Results:", results)
 
 # %%
 # Apply low pass filter and evaluate
-cutoffs = [5000, 8000, 10000, 12000, 16000, 20000, sr_audios[0]//2]
+cutoffs = [5000, 8000, 10000, 12000, 16000, 20000]
+order = 5
 results_low_pass = {}
 
 for cutoff in cutoffs:
-    X_low_pass = np.array([apply_low_pass_filter(audio, sr, cutoff=cutoff) for audio, sr in zip(X_audios, sr_audios)])
+    X_low_pass = np.array([apply_low_pass_filter(audio, sr, cutoff=cutoff, order=order)[0] for audio, sr in zip(X_audios, sr_audios)])
     y_pred = svc.predict(X_low_pass)
     results_low_pass[cutoff] = classification_report(y, y_pred, output_dict=True)['weighted avg']['f1-score']
+
+# %%
+# do the same but with hiclass
+class_hierarchy = {
+        'AI': ['suno', 'udio'],
+        'nonAI': ['lastfm']
+    }
+y_hiclass = np.array([['AI', folder] for folder in y_orig if folder in class_hierarchy['AI']] + [['nonAI', folder] for folder in y_orig if folder in class_hierarchy['nonAI']])
+
+X_train, X_val, y_train, y_val = train_test_split(X, y_hiclass, test_size=0.2, random_state=RANDOM_STATE)
+
+clf = LocalClassifierPerNode(
+    local_classifier=SVC(probability=True, random_state=RANDOM_STATE),
+    binary_policy="inclusive"  # use inclusive policy for binary classifiers
+)
+
+clf.fit(X_train, y_train)
+y_pred = clf.predict(X_val)
+
+results = classification_report(y_val[:, 0], y_pred[:, 0], output_dict=True)
+print("HiClass Results:", results)
+
+# %%
+# apply low pass filter and evaluate
+results_low_pass_hiclass = {}
+
+for cutoff in cutoffs:
+    X_low_pass = np.array([apply_low_pass_filter(audio, sr, cutoff=cutoff, order=order)[0] for audio, sr in zip(X_audios, sr_audios)])
+    y_pred = clf.predict(X_low_pass)
+    results_low_pass_hiclass[cutoff] = classification_report(y_hiclass[:, 0], y_pred[:, 0], output_dict=True)['weighted avg']['f1-score']
 
 # %% 
 # plot how the classification results change with the cutoff frequency
@@ -127,12 +158,14 @@ import seaborn as sns
 
 # Plot results
 plt.figure(figsize=(10, 6))
-sns.lineplot(x=cutoffs, y=list(results_low_pass.values()))
+sns.lineplot(x=cutoffs, y=list(results_low_pass.values()), label='SVC')
+sns.lineplot(x=cutoffs, y=list(results_low_pass_hiclass.values()), label='HiClass')
 plt.xticks(cutoffs)
 plt.grid(axis='both')
 plt.title('SVC Classification Results with Different Cutoff Frequencies')
 plt.xlabel('Cutoff Frequency (Hz)')
 plt.ylabel('F1 Score')
+plt.legend()
 plt.show()
 
 # %%
@@ -156,9 +189,9 @@ def analyze_embeddings(embeddings_dict, labels):
 
 embeddings_dict = {
     'Original': get_emb(X_audios),
-    'Low-pass 5kHz': get_emb([apply_low_pass_filter(audio, sr, 5000) for audio, sr in zip(X_audios, sr_audios)]),
-    'Low-pass 20kHz': get_emb([apply_low_pass_filter(audio, sr, 20000) for audio, sr in zip(X_audios, sr_audios)]),
-    f'Low-pass {(sr_audios[0]//2)/1000}kHz': get_emb([apply_low_pass_filter(audio, sr, sr//2) for audio, sr in zip(X_audios, sr_audios)])
+    'Low-pass 5kHz': get_emb([apply_low_pass_filter(audio, sr, 5000, order=order)[0] for audio, sr in zip(X_audios, sr_audios)]),
+    'Low-pass 20kHz': get_emb([apply_low_pass_filter(audio, sr, 20000, order=order)[0] for audio, sr in zip(X_audios, sr_audios)]),
+    # f'Low-pass {(sr_audios[0]//2)//1000}kHz': get_emb([apply_low_pass_filter(audio, sr, sr//2, order=order)[0] for audio, sr in zip(X_audios, sr_audios)])
 }
 
 analyze_embeddings(embeddings_dict, y)
@@ -167,9 +200,57 @@ analyze_embeddings(embeddings_dict, y)
 from sklearn.metrics import pairwise_distances
 
 for key in embeddings_dict.keys():
-    if key != 'Original':
-        dist = pairwise_distances(embeddings_dict['Original'], embeddings_dict[key])
-        plt.figure(figsize=(10, 8))
-        sns.heatmap(dist, cmap='viridis')
-        plt.title(f'Pairwise distances between Original and {key} embeddings')
-        plt.show()
+    # if key != 'Original':
+    dist = pairwise_distances(embeddings_dict['Original'].T, embeddings_dict[key].T)
+    plt.figure(figsize=(10, 8))
+    sns.heatmap(dist, cmap='viridis')
+    plt.title(f'Pairwise distances between Original and {key} embeddings')
+    plt.show()
+
+# %%
+# grab one audio, listen to it and all low-pass filtered versions
+import IPython.display as ipd
+
+audio_idx = 0
+audio = X_audios[audio_idx]
+sr = sr_audios[audio_idx]
+
+ipd.Audio(audio, rate=sr)
+
+# %%
+cutoffs = [5000, 8000, 10000, 12000, 16000, 20000]
+order = 6
+
+# %%
+print(f"cut-off frequency: {cutoffs[0]}")
+_, audio_low_pass = apply_low_pass_filter(audio, sr, cutoff=cutoffs[0], order=order)
+ipd.Audio(audio_low_pass, rate=sr)
+# %%
+print(f"cut-off frequency: {cutoffs[1]}")
+_, audio_low_pass = apply_low_pass_filter(audio, sr, cutoff=cutoffs[1], order=order)
+ipd.Audio(audio_low_pass, rate=sr)
+
+# %%
+print(f"cut-off frequency: {cutoffs[2]}")
+_, audio_low_pass = apply_low_pass_filter(audio, sr, cutoff=cutoffs[2], order=order)
+ipd.Audio(audio_low_pass, rate=sr)
+
+# %%
+print(f"cut-off frequency: {cutoffs[3]}")
+_, audio_low_pass = apply_low_pass_filter(audio, sr, cutoff=cutoffs[3], order=order)
+ipd.Audio(audio_low_pass, rate=sr)
+
+# %%
+print(f"cut-off frequency: {cutoffs[4]}")
+_, audio_low_pass = apply_low_pass_filter(audio, sr, cutoff=cutoffs[4], order=order)
+ipd.Audio(audio_low_pass, rate=sr)
+
+# %%
+print(f"cut-off frequency: {cutoffs[5]}")
+_, audio_low_pass = apply_low_pass_filter(audio, sr, cutoff=cutoffs[5], order=order)
+ipd.Audio(audio_low_pass, rate=sr)
+
+# %%
+print(f"cut-off frequency: {cutoffs[6]}")
+_, audio_low_pass = apply_low_pass_filter(audio, sr, cutoff=cutoffs[6], order=order)
+ipd.Audio(audio_low_pass, rate=sr)
