@@ -12,7 +12,7 @@ def get_transformed_file(orig_file, transformation, param):
     file_name = orig_file.split('/')[-1]
     folder = orig_file.split('/')[-5]
 
-    if 'noise' in transformation:
+    if 'noise' in transformation or 'dc_drift' in transformation:
         param = str(param).replace(".", "_")
         
     file = f'/home/laura/aimir/{folder}/audio/transformed/{transformation}_{param}/{file_name}'
@@ -32,7 +32,7 @@ def get_table_variances(orig_file, transformations, scaler):
         y = []
         X.append(original)
 
-        if trans in ['high_pass', 'noise']:
+        if trans in ['high_pass', 'noise', 'dc_drift']:
             y.append(0)
 
         for param in params:
@@ -70,7 +70,7 @@ def plot_transformations(orig_file, transformations, scaler):
         y = []
         X.append(original)
         
-        if trans in ['high_pass', 'noise']:
+        if trans in ['high_pass', 'noise', 'dc_drift']:
             y.append(0)
 
         for param in params:
@@ -124,7 +124,7 @@ def calculate_embedding_angles(orig_file, transformations, scaler):
         y = []
         X.append(original)
         
-        if trans in ['high_pass', 'noise']:
+        if trans in ['high_pass', 'noise', 'dc_drift']:
             y.append(0)
         elif trans in ['low_pass', 'decrease_sr']:
             y.append(44100 if class_name == 'lastfm' else 48000)
@@ -157,7 +157,8 @@ transformations = {
     'low_pass': [5000, 8000, 10000, 12000, 16000, 20000],
     'high_pass': [5000, 8000, 10000, 12000, 16000, 20000],
     'decrease_sr': [8000, 16000, 22050, 24000, 44100],
-    'noise': [0.005, 0.01]
+    'noise': [0.005, 0.01],
+    'dc_drift': [0.0001, 0.0005, 0.001, 0.005, 0.01, 0.05, 0.1]
 }
 
 folder = 'suno'
@@ -174,7 +175,7 @@ with open('models_and_scaler.pkl', 'rb') as f:
 
 scaler = saved_data['scaler']
 
-plot_transformations(orig_file, transformations, scaler)
+# plot_transformations(orig_file, transformations, scaler)
 print(get_table_variances(orig_file, transformations, scaler))
 
 # %%
@@ -183,3 +184,4 @@ angles = calculate_embedding_angles(orig_file, transformations, scaler)
 print(pd.DataFrame(angles).sort_index()[['low_pass', 'high_pass']].dropna())
 print(pd.DataFrame(angles).sort_index()[['decrease_sr']].dropna())
 print(pd.DataFrame(angles).sort_index()[['noise']].dropna())
+print(pd.DataFrame(angles).sort_index()[['dc_drift']].dropna())

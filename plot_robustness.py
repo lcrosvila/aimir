@@ -11,10 +11,10 @@ def load_results(file_path):
 def prepare_data(results):
     data = []
     for classifier, transformations in results.items():
-        original_scores = transformations['original']['sample']['coarse']
+        original_scores = transformations['original']['sample']['fine_parent']
         for attack_type, params in transformations.items():
             for attack_value, metrics in params.items():
-                for class_name, class_metrics in metrics['coarse'].items():
+                for class_name, class_metrics in metrics['fine_parent'].items():
                     row = {
                         'classifier': classifier,
                         'class': class_name,
@@ -27,19 +27,19 @@ def prepare_data(results):
                     }
                     data.append(row)
                     
-                    # Add original score for reference
-                    if attack_type in ['high_pass', 'noise']:
-                        original_row = row.copy()
-                        original_row['attack_value'] = 0
-                        for metric in ['f1', 'precision', 'recall', 'accuracy']:
-                            original_row[metric] = original_scores[class_name][metric]
-                        data.append(original_row)
-                    elif attack_type in ['low_pass', 'decrease_sr']:
-                        original_row = row.copy()
-                        original_row['attack_value'] = 44100 if class_name == 'lastfm' else 48000
-                        for metric in ['f1', 'precision', 'recall', 'accuracy']:
-                            original_row[metric] = original_scores[class_name][metric]
-                        data.append(original_row)
+                    # # Add original score for reference
+                    # if attack_type in ['high_pass', 'noise']:
+                    #     original_row = row.copy()
+                    #     original_row['attack_value'] = 0
+                    #     for metric in ['f1', 'precision', 'recall', 'accuracy']:
+                    #         original_row[metric] = original_scores[class_name][metric]
+                    #     data.append(original_row)
+                    # elif attack_type in ['low_pass', 'decrease_sr']:
+                    #     original_row = row.copy()
+                    #     original_row['attack_value'] = 44100 if class_name == 'lastfm' else 48000
+                    #     for metric in ['f1', 'precision', 'recall', 'accuracy']:
+                    #         original_row[metric] = original_scores[class_name][metric]
+                    #     data.append(original_row)
                         
     return pd.DataFrame(data)
 
@@ -74,6 +74,10 @@ def plot_scores(data, score='f1'):
             
             plt.title(f'{classifier}: {score} Score vs {attack_type.replace("_", " ").title()} Value', fontsize=16)
             plt.xlabel(f'{attack_type.replace("_", " ").title()} Value', fontsize=14)
+            # if dc drift, x axis in
+            if attack_type == 'dc_drift':
+                plt.xscale('log')
+                plt.xlabel('DC Drift Value (log)', fontsize=14)
             plt.ylabel(f'{score} Score', fontsize=14)
             
             # Ensure x-axis contains all values in the data

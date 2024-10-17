@@ -130,7 +130,8 @@ def process_audio_batch(headers, ias_url_list):
 
 def main():
     # for dataset in ['udio', 'lastfm', 'suno']:
-    for dataset in ['boomy']:
+    # for dataset in ['boomy']:
+    for dataset in ['lastfm']:
         # Get auth token
         id_token = get_auth_token(client_id, client_secret)
         headers = {
@@ -143,14 +144,15 @@ def main():
         # with open(f'/home/laura/aimir/{dataset}/test.txt', 'r') as f:
         with open(f'/home/laura/aimir/{dataset}/sample.txt', 'r') as f:
             audio_files = f.read().splitlines()
-            audio_files = [f'/home/laura/aimir/{dataset}/audio/{audio_file}.mp3' for audio_file in audio_files]
+            # audio_files = [f'/home/laura/aimir/{dataset}/audio/{audio_file}.mp3' for audio_file in audio_files]
+            audio_files = [f'/home/laura/aimir/{dataset}/audio/DC_drifted/{audio_file}.mp3' for audio_file in audio_files]
         
         # batch it to do it every 20 files
         audio_file_batches = [audio_files[i:i + 20] for i in range(0, len(audio_files), 20)]
 
 
         for batch, audio_files in enumerate(audio_file_batches):
-            if os.path.exists(f'/home/laura/aimir/ircamplify_results/{dataset}/test_ircamplify_{batch}.json'):
+            if os.path.exists(f'/home/laura/aimir/ircamplify_results/{dataset}_DC_drifted/test_ircamplify_{batch}.json'):
                 print(f"Batch {batch} already processed. Skipping.")
                 continue
 
@@ -167,11 +169,11 @@ def main():
                 print("Unable to process audio files. Exiting.")
                 return
         
-            if not os.path.exists(f'/home/laura/aimir/ircamplify_results/{dataset}'):
-                os.makedirs(f'/home/laura/aimir/ircamplify_results/{dataset}')
+            if not os.path.exists(f'/home/laura/aimir/ircamplify_results/{dataset}_DC_drifted'):
+                os.makedirs(f'/home/laura/aimir/ircamplify_results/{dataset}_DC_drifted')
             
             # Save results to file
-            with open(f'/home/laura/aimir/ircamplify_results/{dataset}/test_ircamplify_{batch}.json', 'w') as f:
+            with open(f'/home/laura/aimir/ircamplify_results/{dataset}_DC_drifted/test_ircamplify_{batch}.json', 'w') as f:
                 json.dump(results, f, indent=4)
 
 if __name__ == "__main__":

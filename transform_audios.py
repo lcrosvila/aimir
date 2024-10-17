@@ -111,11 +111,25 @@ def add_tone(audio, sr, audio_path, tone_freq=10000, tone_db=3):
     emb = model._get_embedding_from_data([y_with_tone])[0]
     np.save(save_file, emb)
     return emb
-        
+
+def add_dc_drift(audio, sr, audio_path, drift_amount):
+    file = audio_path.split('/')[-1].split('.')[0]
+    folder = audio_path.split('/')[-3]
+    save_file = f'/home/laura/aimir/{folder}/audio/transformed/dc_drift_{str(drift_amount).replace(".", "_")}/{file}.npy'
+    if os.path.exists(save_file):
+        return np.load(save_file)
+    else:
+        y = audio + drift_amount
+    os.makedirs(os.path.dirname(save_file), exist_ok=True)
+    emb = model._get_embedding_from_data([y])[0]
+    np.save(save_file, emb)
+    return emb
 
 def main():
     split = 'sample'
     folders = ['suno', 'udio', 'lastfm']
+    cutoffs = [100, 500, 1000, 3000, 5000, 8000, 10000, 12000, 16000, 20000]
+    dc_ammounts = [0.0001, 0.0005, 0.001, 0.005, 0.01, 0.05, 0.1]
     files = get_split_mp3(split, folders)
 
     for folder in folders:
@@ -127,18 +141,10 @@ def main():
 
     for file in tqdm(files):
         audio, sr = librosa.load(file, sr=None)
-        apply_low_pass_filter(audio, sr, file, cutoff=5000)
-        apply_low_pass_filter(audio, sr, file, cutoff=8000)
-        apply_low_pass_filter(audio, sr, file, cutoff=10000)
-        apply_low_pass_filter(audio, sr, file, cutoff=12000)
-        apply_low_pass_filter(audio, sr, file, cutoff=16000)
-        apply_low_pass_filter(audio, sr, file, cutoff=20000)
-        apply_high_pass_filter(audio, sr, file, cutoff=5000)
-        apply_high_pass_filter(audio, sr, file, cutoff=8000)
-        apply_high_pass_filter(audio, sr, file, cutoff=10000)
-        apply_high_pass_filter(audio, sr, file, cutoff=12000)
-        apply_high_pass_filter(audio, sr, file, cutoff=16000)
-        apply_high_pass_filter(audio, sr, file, cutoff=20000)
+        for cutoff in cutoffs:
+            apply_low_pass_filter(audio, sr, file, cutoff=cutoff)
+            apply_high_pass_filter(audio, sr, file, cutoff=cutoff)
+
         add_noise(audio, file, noise_factor=0.005)
         add_noise(audio, file, noise_factor=0.01)
         decrease_sample_rate(audio, sr, file, target_sr=8000)
@@ -147,6 +153,9 @@ def main():
         decrease_sample_rate(audio, sr, file, target_sr=24000)
         decrease_sample_rate(audio, sr, file, target_sr=44100)
         add_tone(audio, sr, file, tone_freq=10000, tone_db=3)
+        
+        for dc_ammount in dc_ammounts:
+            add_dc_drift(audio, sr, file, drift_amount=dc_ammount)
     
     print("All files processed.")
 

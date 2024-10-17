@@ -242,7 +242,6 @@ analyze_embeddings(embeddings_dict, y)
 from sklearn.metrics import pairwise_distances
 
 for key in embeddings_dict.keys():
-    # if key != 'Original':
     dist = pairwise_distances(embeddings_dict['Original'].T, embeddings_dict[key].T)
     plt.figure(figsize=(10, 8))
     sns.heatmap(dist, cmap='viridis')

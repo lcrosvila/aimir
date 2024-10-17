@@ -56,15 +56,44 @@ def calculate_dc_drift(y):
     """
     return np.mean(y)
 
+def calculate_dc_drift_windows(y, sr, window_size=0.1):
+    """
+    Calculate the DC drift (offset) of an audio signal over windows of specified size.
+    """
+    window_samples = int(window_size * sr)
+    num_windows = len(y) // window_samples
+    dc_drifts = []
+    
+    for i in range(num_windows):
+        start = i * window_samples
+        end = (i + 1) * window_samples
+        window = y[start:end]
+        dc_drift = np.mean(window)
+        dc_drifts.append(dc_drift)
+    
+    return np.array(dc_drifts)
+
 def analyze_dc_drift(audios):
     """
-    Analyze the DC drift for all audio files.
+    Analyze the DC drift for all audio files using windowed approach.
     """
-    dc_drifts = []
-    for y, _ in audios:
-        dc_drift = calculate_dc_drift(y)
-        dc_drifts.append(dc_drift)
-    return dc_drifts
+    song_means = []
+    song_stds = []
+    for y, sr in audios:
+        dc_drifts = calculate_dc_drift_windows(y, sr)
+        song_means.append(np.mean(dc_drifts))
+        song_stds.append(np.std(dc_drifts))
+    return np.array(song_means), np.array(song_stds)
+
+# def analyze_dc_drift(audios):
+#     """
+#     Analyze the DC drift for all audio files.
+#     """
+#     dc_drifts = []
+#     for y, _ in audios:
+#         dc_drift = calculate_dc_drift(y)
+#         dc_drifts.append(dc_drift)
+#     return dc_drifts
 
 def get_mel_spec(config, x):
     # from https://github.com/LAION-AI/CLAP/blob/main/src/laion_clap/clap_module/htsat.py
@@ -111,42 +140,52 @@ audio_cfg = {
     }
 
 # %%
+dc_drifted_files = os.listdir('/home/laura/aimir/lastfm/audio/DC_drifted/')
+dc_drifted_files = [f'/home/laura/aimir/lastfm/audio/DC_drifted/{file}' for file in dc_drifted_files]
+dc_drifted_audios, _ = load_audios(dc_drifted_files, duration=10)
+dc_drifted_classes = ['lastfm_drifted'] * len(dc_drifted_audios)
+
+audios = audios + dc_drifted_audios
+classes = classes + dc_drifted_classes
+
 # Calculate DC drifts
-dc_drifts = analyze_dc_drift(audios)
+song_means, song_stds = analyze_dc_drift(audios)
 
-# Convert to numpy array
-dc_drifts = np.array(dc_drifts)
+# Set up the plots
+fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(20, 8))
 unique_classes = np.unique(classes)
-
-# Set up the plot
-plt.figure(figsize=(12, 6))
-
-# Color palette for different classes
 color_palette = sns.color_palette("Set1", n_colors=len(unique_classes))
 
-# Plot histograms for each class
+# Plot histograms for song means
 for i, class_name in enumerate(unique_classes):
-    idxes = np.where(np.array(classes) == class_name)[0]
+    idxes = np.array(classes) == class_name
     
     # Print summary statistics
     print(f'Class: {class_name}')
-    print(f'Mean DC drift: {np.mean(dc_drifts[idxes]):.6f}')
-    print(f'Std DC drift: {np.std(dc_drifts[idxes]):.6f}')
-    print(f'Min DC drift: {np.min(dc_drifts[idxes]):.6f}')
-    print(f'Max DC drift: {np.max(dc_drifts[idxes]):.6f}')
+    print(f'Mean of song means: {np.mean(song_means[idxes]):.6f}')
+    print(f'Std of song means: {np.std(song_means[idxes]):.6f}')
+    print(f'Mean of song stds: {np.mean(song_stds[idxes]):.6f}')
+    print(f'Std of song stds: {np.std(song_stds[idxes]):.6f}')
     print('---')
 
-    # Plot histogram with KDE
-    sns.histplot(dc_drifts[idxes], kde=True, label=class_name, color=color_palette[i], alpha=0.3)
+    # Plot histogram with KDE for means
+    sns.histplot(song_means[idxes], kde=True, label=class_name, color=color_palette[i], alpha=0.3, ax=ax1)
+    
+    # Plot histogram with KDE for stds
+    sns.histplot(song_stds[idxes], kde=True, label=class_name, color=color_palette[i], alpha=0.3, ax=ax2)
 
-# Customize the plot
-plt.title('DC Drifts Across All Classes', fontsize=16)
-plt.xlabel('DC Drift', fontsize=12)
-plt.ylabel('Frequency', fontsize=12)
-plt.legend(title='Classes', title_fontsize=12, fontsize=10)
+# Customize the plots
+ax1.set_title('Distribution of Song Means of DC Drifts', fontsize=16)
+ax1.set_xlabel('Mean DC Drift', fontsize=12)
+ax1.set_ylabel('Frequency', fontsize=12)
+ax1.legend(title='Classes', title_fontsize=12, fontsize=10)
+ax1.grid(True, linestyle='--', alpha=0.7)
 
-# Add a grid for better readability
-plt.grid(True, linestyle='--', alpha=0.7)
+ax2.set_title('Distribution of Song Standard Deviations of DC Drifts', fontsize=16)
+ax2.set_xlabel('Std of DC Drift', fontsize=12)
+ax2.set_ylabel('Frequency', fontsize=12)
+ax2.legend(title='Classes', title_fontsize=12, fontsize=10)
+ax2.grid(True, linestyle='--', alpha=0.7)
 
 # Adjust layout and display the plot
 plt.tight_layout()
