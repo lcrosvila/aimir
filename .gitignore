@@ -18,9 +18,10 @@ small/
 .vscode/
 audio_metrics/
 *.pkl
-*.csv
 credentials/
 flask_server/
+figures/
+*.npz
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

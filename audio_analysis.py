@@ -191,8 +191,10 @@ ax2.grid(True, linestyle='--', alpha=0.7)
 plt.tight_layout()
 plt.show()
 
+# %%
+files = files + dc_drifted_files
 # %% 
-idx = np.random.randint(len(audios))
+idx = np.random.randint(len(files))
 y, sr = audios[idx]
 print(files[idx])
 # %%

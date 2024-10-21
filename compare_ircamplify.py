@@ -9,6 +9,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
+import matplotlib.backends.backend_pdf
 
 def load_single_embedding(file):
     if file.endswith('.npy'):
@@ -152,12 +153,15 @@ def get_results_all(folders = ['suno', 'udio', 'lastfm']):
     return merged_data
 
 
-def plot_confusion_matrices(y_true, y_pred_svm_ai, y_pred_rf_ai, y_pred_knn_ai, y_pred_ai, normalize=True):
-    # Create a 2x2 subplot
+def plot_and_save_confusion_matrices(y_true, y_pred_svm_ai, y_pred_rf_ai, y_pred_knn_ai, y_pred_ai, normalize=True, with_boomy=False, directory='output'):
+    # Ensure output directory exists
+    os.makedirs(directory, exist_ok=True)
+    
+    # Create a 2x2 subplot for confusion matrices
     fig, axes = plt.subplots(2, 2, figsize=(20, 20))
-    fig.suptitle("Confusion Matrices for Different Classifiers", fontsize=24)
+    title_suffix = "with Boomy" if with_boomy else "without Boomy"
+    # fig.suptitle(f"Confusion Matrices for Different Classifiers ({title_suffix})", fontsize=24)
 
-    # List of classifiers and their predictions
     classifiers = [
         ("SVM Classifier", y_pred_svm_ai),
         ("RF Classifier", y_pred_rf_ai),
@@ -166,10 +170,7 @@ def plot_confusion_matrices(y_true, y_pred_svm_ai, y_pred_rf_ai, y_pred_knn_ai, 
     ]
 
     for (title, y_pred), ax in zip(classifiers, axes.flatten()):
-        # Create confusion matrix
         cm = pd.crosstab(y_true, y_pred, rownames=['True'], colnames=['Predicted'], margins=True)
-        
-        # Remove the 'All' row and column
         cm = cm.iloc[:-1, :-1]
         
         if normalize:
@@ -178,86 +179,174 @@ def plot_confusion_matrices(y_true, y_pred_svm_ai, y_pred_rf_ai, y_pred_knn_ai, 
         else:
             fmt = 'd'
 
-        # Plot heatmap
-        sns.heatmap(cm, annot=True, fmt=fmt, cmap="YlGnBu", ax=ax, cbar=False, 
-                    annot_kws={"size": 24})  # Increase annotation font size
-        ax.set_title(title, fontsize=20)  # Increase title font size
-        ax.set_ylabel('True Label', fontsize=16)  # Increase y-label font size
-        ax.set_xlabel('Predicted Label', fontsize=16)  # Increase x-label font size
+        sns.heatmap(cm, annot=True, fmt=fmt, cmap="Blues", ax=ax, cbar=False, annot_kws={"size": 26})  # Font size for numbers
+        ax.set_title(f"{title}", fontsize=24)  # Increase title font size
+        ax.set_ylabel('True Label', fontsize=20)  # Increase y-label font size
+        ax.set_xlabel('Predicted Label', fontsize=20)  # Increase x-label font size
         
         # Increase tick label font size
-        ax.tick_params(labelsize=14)
+        ax.tick_params(labelsize=18)
+
+        # print the confusion matrix as latex table
+        print(f"{title}:\n{cm.to_latex()}\n")
+        
 
     plt.tight_layout()
-    plt.show()
 
-# %%
-# try with boomy
-# print(load_ircamplify_results(['boomy']))
+    # Save figure
+    normalization_status = "normalized" if normalize else "non_normalized"
+    filename = f"{directory}/confusion_matrices_{normalization_status}_{title_suffix}.pdf"
+    plt.savefig(filename)
+    plt.close()
 
-# %%
-def evaluate_results(data, normalize=False):
-    # Evaluate the results
+
+    return filename
+
+# Function to print classification report in LaTeX format
+def print_classification_report_latex(data):
     y_true = data['true_class']
     y_pred_svm_parent = data['svm_pred_parent']
     y_pred_rf_parent = data['rf_pred_parent']
     y_pred_knn_parent = data['knn_pred_parent']
+    y_pred_ai = data['is_ai']
+
+    # Convert true_class to AI vs non-AI binary classification
+    y_true_ai = np.array([False if label == 'lastfm' else True for label in y_true])
+    
+    y_pred_svm_ai = np.array([True if label == 'AI' else False for label in y_pred_svm_parent])
+    y_pred_rf_ai = np.array([True if label == 'AI' else False for label in y_pred_rf_parent])
+    y_pred_knn_ai = np.array([True if label == 'AI' else False for label in y_pred_knn_parent])
+    
+    # Create classification report for each classifier
+    svm_report = classification_report(y_true_ai, y_pred_svm_ai, output_dict=True)
+    rf_report = classification_report(y_true_ai, y_pred_rf_ai, output_dict=True)
+    knn_report = classification_report(y_true_ai, y_pred_knn_ai, output_dict=True)
+    ai_report = classification_report(y_true_ai, y_pred_ai, output_dict=True)
+
+    # Combine reports into a LaTeX table
+    table = r"\begin{table}[ht]\centering\begin{tabular}{lcccc}\hline"
+    table += "\n"
+    table += r"Classifier & Precision & Recall & F1-Score & Accuracy \\ \hline"
+    table += "\n"
+    classifiers = [("SVM", svm_report), ("RF", rf_report), ("KNN", knn_report), ("Ircam Amp.", ai_report)]
+
+    for classifier, report in classifiers:
+        precision = report['True']['precision']
+        recall = report['True']['recall']
+        f1_score = report['True']['f1-score']
+        accuracy = report['accuracy']
+        table += f"{classifier} & {precision:.3f} & {recall:.3f} & {f1_score:.3f} & {accuracy:.3f} \\\\ \hline \n"
+
+    table += r"\end{tabular}\caption{Parent-level classification results (AI vs. non-AI) on the validation set}\end{table}"
+
+    print(table)
+
+    # do the same on the child level (suno udio lastfm)
     y_pred_svm_child = data['svm_pred_child']
     y_pred_rf_child = data['rf_pred_child']
     y_pred_knn_child = data['knn_pred_child']
+
+    # Create classification report for each classifier
+    svm_report = classification_report(y_true, y_pred_svm_child, output_dict=True)
+    rf_report = classification_report(y_true, y_pred_rf_child, output_dict=True)
+    knn_report = classification_report(y_true, y_pred_knn_child, output_dict=True)
+
+    # Combine reports into a LaTeX table
+    table = r"\begin{table}[ht]\centering\begin{tabular}{lcccc}\hline"
+    table += "\n"
+    table += r"Classifier & Precision & Recall & F1-Score & Accuracy \\ \hline"
+    table += "\n"
+    classifiers = [("SVM", svm_report), ("RF", rf_report), ("KNN", knn_report)]
+
+    for classifier, report in classifiers:
+        precision = report['macro avg']['precision']
+        recall = report['macro avg']['recall']
+        f1_score = report['macro avg']['f1-score']
+        accuracy = report['accuracy']
+        table += f"{classifier} & {precision:.3f} & {recall:.3f} & {f1_score:.3f} & {accuracy:.3f} \\\\ \hline \n"
+
+    table += r"\end{tabular}\caption{Child-level classification results (LastFM, Suno, Udio) on the validation set}\end{table}"
+
+    print(table)
+
+    # Generate detailed child-level classification report for each classifier
+    classifiers = [("SVM", svm_report), ("RF", rf_report), ("KNN", knn_report)]
+
+    # Create the LaTeX table
+    detailed_table = r"\begin{table}[ht]\centering\begin{tabular}{llccc}\hline"
+    detailed_table += "\n"
+    detailed_table += r"Classifier & Category & Precision & Recall & F1-score \\ \hline"
+    detailed_table += "\n"
+
+    # Loop through each classifier and its corresponding classification report
+    for classifier, report in classifiers:
+        detailed_table += f"\\multirow{{3}}{{*}}{{{classifier}}} "
+
+        # Loop through each category (LastFM, Suno, Udio)
+        for idx, category in enumerate(['lastfm', 'suno', 'udio']):
+            if idx > 0:  # Add a new row for categories other than the first
+                detailed_table += " & "
+            precision = report[category]['precision']
+            recall = report[category]['recall']
+            f1_score = report[category]['f1-score']
+            detailed_table += f"{category.capitalize()} & {precision:.3f} & {recall:.3f} & {f1_score:.3f} \\\\ \n"
+        detailed_table += r"\hline \n"
+
+    detailed_table += r"\end{tabular}\caption{Detailed child-level classification results (LastFM, Suno, Udio) on the validation set}\end{table}"
+
+    # Print the detailed table
+    print(detailed_table)
+
+# Main function to evaluate and save results
+def evaluate_results_and_save(data, normalize=False, with_boomy=False, directory='output'):
+    y_true = data['true_class']
+    y_pred_svm_parent = data['svm_pred_parent']
+    y_pred_rf_parent = data['rf_pred_parent']
+    y_pred_knn_parent = data['knn_pred_parent']
     y_pred_ai = data['is_ai']
 
-    # y_true_ai is Fase if true_class is 'lastfm' and True otherwise
+    # y_true_ai: False for 'lastfm', True for others
     y_true_ai = np.array([False if label == 'lastfm' else True for label in y_true])
 
+    # Binary predictions (True: AI, False: Not AI)
     y_pred_svm_ai = np.array([True if label == 'AI' else False for label in y_pred_svm_parent])
     y_pred_rf_ai = np.array([True if label == 'AI' else False for label in y_pred_rf_parent])
     y_pred_knn_ai = np.array([True if label == 'AI' else False for label in y_pred_knn_parent])
 
-    # print(y_pred_svm_ai)
+    # Plot and save confusion matrices
+    normalized_filename = plot_and_save_confusion_matrices(
+        y_true, y_pred_svm_ai, y_pred_rf_ai, y_pred_knn_ai, y_pred_ai, normalize=True, with_boomy=with_boomy, directory=directory
+    )
+    non_normalized_filename = plot_and_save_confusion_matrices(
+        y_true, y_pred_svm_ai, y_pred_rf_ai, y_pred_knn_ai, y_pred_ai, normalize=False, with_boomy=with_boomy, directory=directory
+    )
 
-    print("SVM Classifier:")
-    # print(classification_report(y_true_int, y_pred_svm))
-    print(classification_report(y_true_ai, y_pred_svm_ai))
-    print("RF Classifier:")
-    # print(classification_report(y_true_int, y_pred_rf))
-    print(classification_report(y_true_ai, y_pred_rf_ai))
-    print("KNN Classifier:")
-    # print(classification_report(y_true_int, y_pred_knn))
-    print(classification_report(y_true_ai, y_pred_knn_ai))
-    print("Ircam Amplify Classifier:")
-    print(classification_report(y_true_ai, y_pred_ai))
+    print(f"Saved normalized confusion matrices to: {normalized_filename}")
+    print(f"Saved non-normalized confusion matrices to: {non_normalized_filename}")
 
-    # print the overal confidence when is_ai is True and False
-    print("Overall confidence when is_ai is True:")
-    print(data[data['is_ai'] == True]['confidence'].describe())
-    print("Overall confidence when is_ai is False:")
-    print(data[data['is_ai'] == False]['confidence'].describe())
+    # Print LaTeX table for classification report
+    print_classification_report_latex(data)
 
-    # confusion matrix, where true label is 'suno' 'udio' or 'lastfm' and the predicted label is 'ai' or 'not ai'
-    print("Confusion matrix for SVM Classifier:")
-    print(pd.crosstab(y_true, y_pred_svm_ai, rownames=['True'], colnames=['Predicted'], margins=True))
-    print("Confusion matrix for RF Classifier:")
-    print(pd.crosstab(y_true, y_pred_rf_ai, rownames=['True'], colnames=['Predicted'], margins=True))
-    print("Confusion matrix for KNN Classifier:")
-    print(pd.crosstab(y_true, y_pred_knn_ai, rownames=['True'], colnames=['Predicted'], margins=True))
-    print("Confusion matrix for Ircam Amplify Classifier:")
-    print(pd.crosstab(y_true, y_pred_ai, rownames=['True'], colnames=['Predicted'], margins=True))
-
-    # print the row where ircam amplify predicted not ai when it was ai
-    print(data[(data['is_ai'] == False) & (data['true_class'].isin(['suno', 'udio']))])
-    print(data[(data['is_ai'] == True) & (data['true_class'] == 'lastfm')])
-
-    plot_confusion_matrices(y_true, y_pred_svm_ai, y_pred_rf_ai, y_pred_knn_ai, y_pred_ai, normalize=normalize)
-
+# Example usage
 if __name__ == "__main__":
-    folders = ['suno', 'udio', 'lastfm', 'boomy']
+    with_boomy = False
+    output_dir = '/home/laura/aimir/figures/confusion_matrices' 
+
+    if with_boomy:
+        folders = ['suno', 'udio', 'lastfm', 'boomy']
+    else:
+        folders = ['suno', 'udio', 'lastfm']
+
     data = get_results_all(folders)
-    # drop some rows so that we have 1000 of 'suno', 1000 of 'udio' and 1000 of 'lastfm'
     suno = data[data['true_class'] == 'suno'].sample(n=1000, random_state=42)
     udio = data[data['true_class'] == 'udio'].sample(n=1000, random_state=42)
     lastfm = data[data['true_class'] == 'lastfm'].sample(n=1000, random_state=42)
-    boomy = data[data['true_class'] == 'boomy']
-    data = pd.concat([suno, udio, lastfm, boomy])
-    # print(data['true_class'].value_counts())
-    evaluate_results(data, normalize=True)
+
+    if with_boomy:
+        boomy = data[data['true_class'] == 'boomy']
+        data = pd.concat([suno, udio, lastfm, boomy])
+    else:
+        data = pd.concat([suno, udio, lastfm])
+
+    # Evaluate results and save figures and reports
+    evaluate_results_and_save(data, normalize=True, with_boomy=with_boomy, directory=output_dir)

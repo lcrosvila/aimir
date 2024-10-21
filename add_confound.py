@@ -112,7 +112,7 @@ print("SVC Results:", results)
 
 # %%
 # Apply low pass filter and evaluate
-cutoffs = [5000, 8000, 10000, 12000, 16000, 20000]
+cutoffs = [100, 500, 1000, 3000, 5000, 8000, 10000, 12000, 16000, 20000]
 order = 5
 results_low_pass = {}
 
@@ -156,16 +156,44 @@ for cutoff in cutoffs:
 import matplotlib.pyplot as plt
 import seaborn as sns
 
-# Plot results
-plt.figure(figsize=(10, 6))
-sns.lineplot(x=cutoffs, y=list(results_low_pass.values()), label='SVC')
-sns.lineplot(x=cutoffs, y=list(results_low_pass_hiclass.values()), label='HiClass')
-plt.xticks(cutoffs)
-plt.grid(axis='both')
-plt.title('SVC Classification Results with Different Cutoff Frequencies')
-plt.xlabel('Cutoff Frequency (Hz)')
-plt.ylabel('F1 Score')
-plt.legend()
+results_low_pass_prev = results_low_pass.copy()
+results_low_pass_hiclass_prev = results_low_pass_hiclass.copy()
+
+# exclude cutoff 500
+cutoffs = [100, 1000, 3000, 5000, 8000, 10000, 12000, 16000, 20000]
+results_low_pass = {cutoff: results_low_pass_prev[cutoff] for cutoff in cutoffs}
+results_low_pass_hiclass = {cutoff: results_low_pass_hiclass_prev[cutoff] for cutoff in cutoffs}
+
+sns.set_style("whitegrid")
+plt.rcParams.update({'font.size': 12})
+# Plot low_pass results
+fig, ax = plt.subplots(figsize=(10, 6))
+palette = sns.color_palette("Set2", n_colors=2)
+# Plot SVC results
+ax.plot(cutoffs, list(results_low_pass.values()), marker='o', markersize=6, label='SVM', color=palette[0])
+# Plot HiClass results
+ax.plot(cutoffs, list(results_low_pass_hiclass.values()), marker='o', markersize=6, label='HiClass', color=palette[1])
+
+# Set title and labels
+# ax.set_title('SVC Classification Results vs Cutoff Frequencies', fontsize=16)
+ax.set_xlabel('Cutoff Frequency (Hz)', fontsize=12)
+ax.set_ylabel('F1 Score', fontsize=12)
+
+# Set x-ticks
+ax.set_xticks(cutoffs)
+
+# Add legend
+ax.legend(title='Classifier', title_fontsize='12', fontsize='10')
+
+# Add grid
+ax.grid(True, linestyle='--', alpha=0.7)
+
+# Tight layout for better spacing
+plt.tight_layout()
+
+# save the plot in '/home/laura/aimir/figures'
+plt.savefig('/home/laura/aimir/figures/low_pass_debug.pdf', format='pdf', dpi=300, bbox_inches='tight')
+# Show the plot
 plt.show()
 
 # %%
@@ -230,19 +258,21 @@ def analyze_embeddings(embeddings_dict, labels):
     plt.tight_layout()
     plt.show()
 
+# %%
 embeddings_dict = {
     'Original': get_emb(X_audios, batch_size=4),
     'Low-pass 5kHz': get_emb([apply_low_pass_filter(audio, sr, 5000, order=order)[0] for audio, sr in zip(X_audios, sr_audios)], batch_size=4),
     'Low-pass 20kHz': get_emb([apply_low_pass_filter(audio, sr, 20000, order=order)[0] for audio, sr in zip(X_audios, sr_audios)], batch_size=4)
 }
 
+# %%
 analyze_embeddings(embeddings_dict, y)
 
 # %%
 from sklearn.metrics import pairwise_distances
 
 for key in embeddings_dict.keys():
-    dist = pairwise_distances(embeddings_dict['Original'].T, embeddings_dict[key].T)
+    dist = pairwise_distances(embeddings_dict['Original'], embeddings_dict[key])
     plt.figure(figsize=(10, 8))
     sns.heatmap(dist, cmap='viridis')
     plt.title(f'Pairwise distances between Original and {key} embeddings')
